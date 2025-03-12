@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cookieSession = require('cookie-session');
+const path = require('path'); // <-- import path
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,23 +12,25 @@ const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN; // your permanent
 const SHOPIFY_SHOP_DOMAIN = process.env.SHOPIFY_SHOP_DOMAIN || 'your-store.myshopify.com';
 const FORWARDING_ADDRESS = process.env.FORWARDING_ADDRESS; // e.g., "https://your-app.vercel.app"
 
-app.use(cookieSession({
-  name: 'session',
-  keys: [process.env.COOKIE_SECRET || 'default-secret'],
-}));
+app.use(
+  cookieSession({
+    name: 'session',
+    keys: [process.env.COOKIE_SECRET || 'default-secret'],
+  })
+);
 
-// Set view engine to EJS and serve static files from 'public'
+// Tell Express exactly where your EJS views folder is located:
+app.set('views', path.join(__dirname, 'views')); 
 app.set('view engine', 'ejs');
-app.use(express.static('public'));
 
-// If you no longer need dynamic OAuth, you can remove these routes.
-// Otherwise, you can keep them for future use. For now, we'll bypass OAuth:
+// Serve static files from 'public'
+app.use(express.static('public'));
 
 // Dashboard route: Fetch orders using the permanent access token
 app.get('/dashboard', async (req, res) => {
   const shop = SHOPIFY_SHOP_DOMAIN;
   const accessToken = SHOPIFY_ACCESS_TOKEN;
-  
+
   try {
     const ordersResponse = await axios.get(`https://${shop}/admin/api/2023-04/orders.json`, {
       headers: { 'X-Shopify-Access-Token': accessToken }
