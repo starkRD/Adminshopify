@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Order Dashboard</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <h1>Order Dashboard</h1>
+  <table border="1" cellpadding="10">
+    <thead>
+      <tr>
+        <th>Order ID</th>
+        <th>Customer Info</th>
+        <th>Order Details</th>
+        <th>Expected Delivery</th>
+        <th>Feedback/Changes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% orders.forEach(order => { %>
+        <tr>
+          <td><%= order.id %></td>
+          <td>
+            <% if (order.customer) { %>
+              <%= order.customer.first_name %> <%= order.customer.last_name %><br>
+              <%= order.customer.phone %>
+            <% } else { %>
+              Guest
+            <% } %>
+          </td>
+          <td>
+            <% order.line_items.forEach(item => { %>
+              <strong><%= item.title %></strong><br>
+              <% if (item.properties && item.properties.length > 0) { %>
+                <% item.properties.forEach(prop => { %>
+                  <%= prop.name %>: <%= prop.value %><br>
+                <% }); %>
+              <% } %>
+              <hr>
+            <% }); %>
+          </td>
+          <td>
+            <% 
+              let deliveryDate = new Date(order.created_at);
+              if (order.tags.includes('Basic')) { deliveryDate.setDate(deliveryDate.getDate() + 10); }
+              else if (order.tags.includes('Premium')) { deliveryDate.setDate(deliveryDate.getDate() + 5); }
+            %>
+            <%= deliveryDate.toDateString() %>
+          </td>
+          <td>
+            <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field">
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <script>
+    document.querySelectorAll('.feedback-field').forEach(field => {
+      field.addEventListener('blur', function() {
+        const orderId = this.getAttribute('data-order-id');
+        const feedback = this.value;
+        fetch('/update-feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, feedback })
+        })
+        .then(response => response.json())
+        .then(data => console.log("Feedback saved:", data))
+        .catch(err => console.error("Error:", err));
+      });
+    });
+  </script>
+</body>
+</html>
