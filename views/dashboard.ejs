@@ -24,7 +24,7 @@
       <tbody>
         <% orders.forEach(order => { %>
           <tr>
-            <td><%= order.id %></td>
+            <td><%= order.name %></td>
             <td>
               <% if (order.customer) { %>
                 <%= order.customer.first_name %> <%= order.customer.last_name %><br>
@@ -34,19 +34,45 @@
               <% } %>
             </td>
             <td>
-              <% order.line_items.forEach(item => { %>
-                <div>
-                  <strong><%= item.title %></strong><br>
-                  <% if (item.properties && item.properties.length > 0) { %>
-                    <% item.properties.forEach(prop => { %>
-                      <small><%= prop.name %>: <%= prop.value %></small><br>
-                    <% }); %>
-                  <% } %>
-                </div>
-                <hr class="my-1">
-              <% }); %>
-            </td>
-            <td>
+  <% order.line_items.forEach(item => { %>
+    <div>
+      <!-- If "Song Type" might appear in the item title, skip for viewers. Otherwise, just show item.title. -->
+      <% if (role === 'viewer') { %>
+        <strong><%= item.title %></strong><br>
+      <% } else { %>
+        <strong><%= item.title %></strong><br>
+        <!-- If you want to show item price for admins only -->
+        <small class="text-muted">Price: <%= item.price %></small><br>
+      <% } %>
+      
+      <% if (item.properties && item.properties.length > 0) { %>
+        <% item.properties.forEach(prop => { 
+             const propName = prop.name.toLowerCase();
+             let shouldHide = false;
+             
+             // Hide these if viewer:
+             if (role === 'viewer') {
+               if (
+                 propName.includes('whatsapp') ||
+                 propName.includes('price') ||
+                 propName.includes('selected addons') ||
+                 propName.includes('uploaded images') ||
+                 propName.includes('song type')
+               ) {
+                 shouldHide = true;
+               }
+             }
+        %>
+          <% if (!shouldHide) { %>
+            <small><%= prop.name %>: <%= prop.value %></small><br>
+          <% } %>
+        <% }); %>
+      <% } %>
+    </div>
+    <hr class="my-1">
+  <% }); %>
+</td>
+
               <% 
                 let deliveryDate = new Date(order.created_at);
                 // Example logic: adjust based on order tags (customize as needed)
