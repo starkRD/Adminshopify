@@ -14,7 +14,7 @@
     <table class="table table-bordered table-striped">
       <thead class="table-dark">
         <tr>
-          <th>Order ID</th>
+          <th>Order Number</th>
           <th>Customer Info</th>
           <th>Order Details</th>
           <th>Expected Delivery</th>
@@ -24,6 +24,7 @@
       <tbody>
         <% orders.forEach(order => { %>
           <tr>
+            <!-- Use order.name to display the Shopify order number (e.g., "#1001") -->
             <td><%= order.name %></td>
             <td>
               <% if (order.customer) { %>
@@ -34,48 +35,66 @@
               <% } %>
             </td>
             <td>
-  <% order.line_items.forEach(item => { %>
-    <div>
-      <!-- If "Song Type" might appear in the item title, skip for viewers. Otherwise, just show item.title. -->
-      <% if (role === 'viewer') { %>
-        <strong><%= item.title %></strong><br>
-      <% } else { %>
-        <strong><%= item.title %></strong><br>
-        <!-- If you want to show item price for admins only -->
-        <small class="text-muted">Price: <%= item.price %></small><br>
-      <% } %>
-      
-      <% if (item.properties && item.properties.length > 0) { %>
-        <% item.properties.forEach(prop => { 
-             const propName = prop.name.toLowerCase();
-             let shouldHide = false;
-             
-             // Hide these if viewer:
-             if (role === 'viewer') {
-               if (
-                 propName.includes('whatsapp') ||
-                 propName.includes('price') ||
-                 propName.includes('selected addons') ||
-                 propName.includes('uploaded images') ||
-                 propName.includes('song type')
-               ) {
-                 shouldHide = true;
-               }
-             }
-        %>
-          <% if (!shouldHide) { %>
-            <small><%= prop.name %>: <%= prop.value %></small><br>
-          <% } %>
-        <% }); %>
-      <% } %>
-    </div>
-    <hr class="my-1">
-  <% }); %>
-</td>
-
+              <% order.line_items.forEach(item => { %>
+                <div>
+                  <!-- Always display the item title -->
+                  <strong><%= item.title %></strong><br>
+                  
+                  <% if (item.properties && item.properties.length > 0) { %>
+                    <% item.properties.forEach(prop => { 
+                         const propName = prop.name.toLowerCase();
+                         let displayValue = prop.value;
+                         let shouldHide = false;
+                         
+                         // If this property is a "Form Data" block, parse it.
+                         if (propName.includes('form data')) {
+                           if (role === 'viewer') {
+                             // Split the text into individual lines.
+                             let lines = displayValue.split('\n');
+                             // Filter out confidential lines.
+                             lines = lines.filter(line => {
+                               const lowerLine = line.toLowerCase();
+                               if (
+                                 lowerLine.includes('whatsapp') ||
+                                 lowerLine.includes('price') ||
+                                 lowerLine.includes('song type') ||
+                                 lowerLine.includes('uploaded images') ||
+                                 lowerLine.includes('selected addons')
+                               ) {
+                                 return false;
+                               }
+                               return true;
+                             });
+                             displayValue = lines.join('\n');
+                           }
+                         } else {
+                           // For properties that are not "Form Data", hide them entirely if they are confidential.
+                           if (role === 'viewer') {
+                             if (
+                               propName.includes('whatsapp') ||
+                               propName.includes('price') ||
+                               propName.includes('song type') ||
+                               propName.includes('uploaded images') ||
+                               propName.includes('selected addons')
+                             ) {
+                               shouldHide = true;
+                             }
+                           }
+                         }
+                    %>
+                      <% if (!shouldHide) { %>
+                        <small><%= prop.name %>: <%= displayValue %></small><br>
+                      <% } %>
+                    <% }); %>
+                  <% } %>
+                </div>
+                <hr class="my-1">
+              <% }); %>
+            </td>
+            <td>
               <% 
                 let deliveryDate = new Date(order.created_at);
-                // Example logic: adjust based on order tags (customize as needed)
+                // Example logic: if order has tag "Basic", add 10 days; if "Premium", add 5 days.
                 if (order.tags && order.tags.includes('Basic')) {
                   deliveryDate.setDate(deliveryDate.getDate() + 10);
                 } else if (order.tags && order.tags.includes('Premium')) {
@@ -98,7 +117,7 @@
   </div>
   
   <script>
-    // Only enable updating feedback if role is admin
+    // For admins, enable feedback update on blur event.
     if ("<%= role %>" === "admin") {
       document.querySelectorAll('.feedback-field').forEach(field => {
         field.addEventListener('blur', function() {
