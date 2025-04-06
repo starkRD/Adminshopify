@@ -11,15 +11,15 @@ const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN; // Your permanent
 const SHOPIFY_SHOP_DOMAIN = process.env.SHOPIFY_SHOP_DOMAIN || 'your-store.myshopify.com';
 const FORWARDING_ADDRESS = process.env.FORWARDING_ADDRESS; // e.g., "https://adminshopify.vercel.app"
 
-// Passwords for different roles/viewers (set in your environment)
+// Passwords for different roles/viewers (set these in your environment)
 const DASHBOARD_ADMIN_PASSWORD = process.env.DASHBOARD_ADMIN_PASSWORD;
-const DASHBOARD_SHANU_PASSWORD = process.env.DASHBOARD_SHANU_PASSWORD; 
-const DASHBOARD_HINDI_PASSWORD = process.env.DASHBOARD_HINDI_PASSWORD;
-const DASHBOARD_ENGLISH_PASSWORD = process.env.DASHBOARD_ENGLISH_PASSWORD;
-const DASHBOARD_TAMIL_PASSWORD = process.env.DASHBOARD_TAMIL_PASSWORD;
-const DASHBOARD_TELUGU_PASSWORD = process.env.DASHBOARD_TELUGU_PASSWORD;
-const DASHBOARD_KANNADA_PASSWORD = process.env.DASHBOARD_KANNADA_PASSWORD;
-const DASHBOARD_MALAYALAM_PASSWORD = process.env.DASHBOARD_MALAYALAM_PASSWORD;
+const DASHBOARD_SHANU_PASSWORD = process.env.DASHBOARD_SHANU_PASSWORD; // Viewer: Hindi, English, Tamil, Malayalam
+const DASHBOARD_HINDI_PASSWORD = process.env.DASHBOARD_HINDI_PASSWORD; // Only Hindi orders
+const DASHBOARD_ENGLISH_PASSWORD = process.env.DASHBOARD_ENGLISH_PASSWORD; // Only English orders
+const DASHBOARD_TAMIL_PASSWORD = process.env.DASHBOARD_TAMIL_PASSWORD; // Only Tamil orders
+const DASHBOARD_TELUGU_PASSWORD = process.env.DASHBOARD_TELUGU_PASSWORD; // Only Telugu orders
+const DASHBOARD_KANNADA_PASSWORD = process.env.DASHBOARD_KANNADA_PASSWORD; // Only Kannada orders
+const DASHBOARD_MALAYALAM_PASSWORD = process.env.DASHBOARD_MALAYALAM_PASSWORD; // Only Malayalam orders
 
 app.use(express.urlencoded({ extended: true })); // for form data
 app.use(express.json()); // for JSON bodies
@@ -124,8 +124,7 @@ async function fetchAllOrders(shop, accessToken) {
     const linkHeader = response.headers.link;
     if (linkHeader) {
       // Parse the Link header to find the next page URL
-      const nextPageUrl = parseNextLink(linkHeader);
-      url = nextPageUrl;
+      url = parseNextLink(linkHeader);
     } else {
       url = null;
     }
@@ -159,31 +158,31 @@ app.get('/dashboard', requireLogin, async (req, res) => {
     
     // If the user is not admin, filter orders by allowed language.
     if (req.session.role !== 'admin') {
-      const allowedLanguages = req.session.languages; // e.g., ['Hindi']
+      // Normalize allowed languages to lowercase.
+      const allowedLanguages = req.session.languages.map(lang => lang.toLowerCase());
+      
       orders = orders.filter(order => {
-        // Determine the order's language by checking line item properties.
         let orderLanguage = null;
+        // Check each order's line items for language information.
         order.line_items.forEach(item => {
           if (item.properties && item.properties.length > 0) {
             item.properties.forEach(prop => {
               const propName = prop.name.toLowerCase();
               if (propName.includes('language')) {
-                // If it's a "Form Data" property, we might need to split it.
                 if (propName.includes('form data')) {
                   const lines = prop.value.split('\n');
                   lines.forEach(line => {
                     if (line.toLowerCase().startsWith('language:')) {
-                      orderLanguage = line.split(':')[1].trim();
+                      orderLanguage = line.split(':')[1].trim().toLowerCase();
                     }
                   });
                 } else {
-                  orderLanguage = prop.value;
+                  orderLanguage = prop.value.trim().toLowerCase();
                 }
               }
             });
           }
         });
-        // Include the order only if its language is in allowedLanguages.
         return orderLanguage && allowedLanguages.includes(orderLanguage);
       });
     }
@@ -196,10 +195,10 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 });
 
 // ---------------------------
-// Feedback Update Endpoint (Admin only)
+// FEEDBACK UPDATE ENDPOINT (ADMIN ONLY)
 // ---------------------------
 app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
-  // Normally, you'd update your database or Shopify metafields.
+  // Normally, update your database or Shopify metafields.
   res.json({ status: 'success' });
 });
 
