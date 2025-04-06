@@ -11,18 +11,18 @@ const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN; // Your permanent
 const SHOPIFY_SHOP_DOMAIN = process.env.SHOPIFY_SHOP_DOMAIN || 'your-store.myshopify.com';
 const FORWARDING_ADDRESS = process.env.FORWARDING_ADDRESS; // e.g., "https://adminshopify.vercel.app"
 
-// Passwords for different roles/viewers
+// Passwords for different roles/viewers (set in your environment)
 const DASHBOARD_ADMIN_PASSWORD = process.env.DASHBOARD_ADMIN_PASSWORD;
-const DASHBOARD_SHANU_PASSWORD = process.env.DASHBOARD_SHANU_PASSWORD; // Viewer who sees Hindi, English, Tamil, Malayalam
-const DASHBOARD_HINDI_PASSWORD = process.env.DASHBOARD_HINDI_PASSWORD; // Only Hindi orders
-const DASHBOARD_ENGLISH_PASSWORD = process.env.DASHBOARD_ENGLISH_PASSWORD; // Only English orders
-const DASHBOARD_TAMIL_PASSWORD = process.env.DASHBOARD_TAMIL_PASSWORD; // Only Tamil orders
-const DASHBOARD_TELUGU_PASSWORD = process.env.DASHBOARD_TELUGU_PASSWORD; // Only Telugu orders
-const DASHBOARD_KANNADA_PASSWORD = process.env.DASHBOARD_KANNADA_PASSWORD; // Only Kannada orders
-const DASHBOARD_MALAYALAM_PASSWORD = process.env.DASHBOARD_MALAYALAM_PASSWORD; // Only Malayalam orders
+const DASHBOARD_SHANU_PASSWORD = process.env.DASHBOARD_SHANU_PASSWORD; 
+const DASHBOARD_HINDI_PASSWORD = process.env.DASHBOARD_HINDI_PASSWORD;
+const DASHBOARD_ENGLISH_PASSWORD = process.env.DASHBOARD_ENGLISH_PASSWORD;
+const DASHBOARD_TAMIL_PASSWORD = process.env.DASHBOARD_TAMIL_PASSWORD;
+const DASHBOARD_TELUGU_PASSWORD = process.env.DASHBOARD_TELUGU_PASSWORD;
+const DASHBOARD_KANNADA_PASSWORD = process.env.DASHBOARD_KANNADA_PASSWORD;
+const DASHBOARD_MALAYALAM_PASSWORD = process.env.DASHBOARD_MALAYALAM_PASSWORD;
 
-app.use(express.urlencoded({ extended: true })); // to parse form data
-app.use(express.json()); // to parse JSON bodies
+app.use(express.urlencoded({ extended: true })); // for form data
+app.use(express.json()); // for JSON bodies
 
 app.use(cookieSession({
   name: 'session',
@@ -39,13 +39,10 @@ app.use(express.static('public'));
 // ---------------------------
 // LOGIN & ROLE SETUP
 // ---------------------------
-
-// Login page
 app.get('/login', (req, res) => {
   res.render('login', { error: null });
 });
 
-// Process login; set session role and allowed languages
 app.post('/login', (req, res) => {
   const { password } = req.body;
   if (password === DASHBOARD_ADMIN_PASSWORD) {
@@ -110,6 +107,47 @@ function requireAdmin(req, res, next) {
 }
 
 // ---------------------------
+// HELPER FUNCTION FOR PAGINATION
+// ---------------------------
+async function fetchAllOrders(shop, accessToken) {
+  let orders = [];
+  // Use the maximum allowed limit per request (250 is the max for Shopify)
+  let url = `https://${shop}/admin/api/2023-04/orders.json?limit=250`;
+  
+  while (url) {
+    const response = await axios.get(url, {
+      headers: { 'X-Shopify-Access-Token': accessToken }
+    });
+    orders = orders.concat(response.data.orders);
+    
+    // Check for the Link header to see if there is a next page
+    const linkHeader = response.headers.link;
+    if (linkHeader) {
+      // Parse the Link header to find the next page URL
+      const nextPageUrl = parseNextLink(linkHeader);
+      url = nextPageUrl;
+    } else {
+      url = null;
+    }
+  }
+  return orders;
+}
+
+function parseNextLink(linkHeader) {
+  // Link header example:
+  // <https://your-store.myshopify.com/admin/api/2023-04/orders.json?page_info=xyz&limit=250>; rel="next"
+  const links = linkHeader.split(',');
+  for (let link of links) {
+    const [urlPart, relPart] = link.split(';');
+    if (relPart && relPart.includes('rel="next"')) {
+      // Remove < and > from the URL part and trim spaces
+      return urlPart.trim().slice(1, -1);
+    }
+  }
+  return null;
+}
+
+// ---------------------------
 // DASHBOARD ROUTE
 // ---------------------------
 app.get('/dashboard', requireLogin, async (req, res) => {
@@ -117,27 +155,21 @@ app.get('/dashboard', requireLogin, async (req, res) => {
   const accessToken = SHOPIFY_ACCESS_TOKEN;
   
   try {
-    const ordersResponse = await axios.get(`https://${shop}/admin/api/2023-04/orders.json`, {
-      headers: { 'X-Shopify-Access-Token': accessToken }
-    });
-    let orders = ordersResponse.data.orders;
+    let orders = await fetchAllOrders(shop, accessToken);
     
     // If the user is not admin, filter orders by allowed language.
     if (req.session.role !== 'admin') {
       const allowedLanguages = req.session.languages; // e.g., ['Hindi']
       orders = orders.filter(order => {
-        // Determine the order's language by checking line items.
-        // We assume the language is stored in a property called "Language" (or within "Form Data").
+        // Determine the order's language by checking line item properties.
         let orderLanguage = null;
         order.line_items.forEach(item => {
           if (item.properties && item.properties.length > 0) {
             item.properties.forEach(prop => {
               const propName = prop.name.toLowerCase();
-              // If it's "language" or contained in a "form data" block, try to extract it.
               if (propName.includes('language')) {
-                // If the property is "Form Data", it might be multi-line. Otherwise, use the value.
+                // If it's a "Form Data" property, we might need to split it.
                 if (propName.includes('form data')) {
-                  // Split the value by newlines and look for a line starting with "Language:"
                   const lines = prop.value.split('\n');
                   lines.forEach(line => {
                     if (line.toLowerCase().startsWith('language:')) {
@@ -151,7 +183,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
             });
           }
         });
-        // Include the order only if its language is one of the allowed languages.
+        // Include the order only if its language is in allowedLanguages.
         return orderLanguage && allowedLanguages.includes(orderLanguage);
       });
     }
@@ -167,7 +199,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 // Feedback Update Endpoint (Admin only)
 // ---------------------------
 app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
-  // Normally update your database or Shopify metafields.
+  // Normally, you'd update your database or Shopify metafields.
   res.json({ status: 'success' });
 });
 
