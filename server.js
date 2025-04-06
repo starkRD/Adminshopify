@@ -123,7 +123,6 @@ async function fetchAllOrders(shop, accessToken) {
     // Check for the Link header to see if there is a next page
     const linkHeader = response.headers.link;
     if (linkHeader) {
-      // Parse the Link header to find the next page URL
       url = parseNextLink(linkHeader);
     } else {
       url = null;
@@ -133,13 +132,12 @@ async function fetchAllOrders(shop, accessToken) {
 }
 
 function parseNextLink(linkHeader) {
-  // Link header example:
+  // Example Link header:
   // <https://your-store.myshopify.com/admin/api/2023-04/orders.json?page_info=xyz&limit=250>; rel="next"
   const links = linkHeader.split(',');
   for (let link of links) {
     const [urlPart, relPart] = link.split(';');
     if (relPart && relPart.includes('rel="next"')) {
-      // Remove < and > from the URL part and trim spaces
       return urlPart.trim().slice(1, -1);
     }
   }
@@ -163,7 +161,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
       
       orders = orders.filter(order => {
         let orderLanguage = null;
-        // Check each order's line items for language information.
+        // Loop through each order's line items to extract language information.
         order.line_items.forEach(item => {
           if (item.properties && item.properties.length > 0) {
             item.properties.forEach(prop => {
@@ -183,6 +181,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
             });
           }
         });
+        console.log(`Order ${order.name}: Detected language: ${orderLanguage}`);
         return orderLanguage && allowedLanguages.includes(orderLanguage);
       });
     }
