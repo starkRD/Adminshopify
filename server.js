@@ -157,32 +157,53 @@ app.get('/dashboard', requireLogin, async (req, res) => {
       
       orders = orders.filter(order => {
         let orderLanguage = null;
-        // Loop through each order's line items to extract language information.
-        order.line_items.forEach(item => {
+        
+        // Loop through each order's line items to extract language information
+        for (const item of order.line_items) {
           if (item.properties && item.properties.length > 0) {
-            item.properties.forEach(prop => {
-              const propName = prop.name.toLowerCase();
-              if (propName.includes('language')) {
-                // Check if it's a "Form Data" property.
-                if (propName.includes('form data')) {
-                  // Split lines, trim empty ones.
-                  const lines = prop.value.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-                  lines.forEach(line => {
-                    // If the line starts with "language:" (case-insensitive)
-                    if (line.toLowerCase().startsWith('language:')) {
-                      orderLanguage = line.split(':')[1].trim().toLowerCase();
-                      console.log(`Order ${order.name}: Detected language: ${orderLanguage}`);
-                    }
-                  });
-                } else {
-                  orderLanguage = prop.value.trim().toLowerCase();
-                  console.log(`Order ${order.name}: Detected language (non-Form Data): ${orderLanguage}`);
+            // Check both direct Language property and Form Data
+            for (const prop of item.properties) {
+              // Case 1: Direct language property (like in your first format)
+              if (prop.name.toLowerCase() === 'language') {
+                orderLanguage = prop.value.trim().toLowerCase();
+                console.log(`Order ${order.name}: Found direct language property: ${orderLanguage}`);
+                break; // Found the language, no need to check other properties
+              } 
+              
+              // Case 2: Form Data property (like in your second format)
+              else if (prop.name.toLowerCase() === 'form data' || prop.name.toLowerCase().includes('form data')) {
+                const formData = prop.value;
+                
+                // Parse the form data line by line
+                const lines = formData.split('\n').map(line => line.trim());
+                
+                // Look for a line that starts with "Language:" 
+                for (const line of lines) {
+                  if (line.toLowerCase().startsWith('language:')) {
+                    orderLanguage = line.substring(line.indexOf(':') + 1).trim().toLowerCase();
+                    console.log(`Order ${order.name}: Extracted language from Form Data: ${orderLanguage}`);
+                    break; // Found the language, no need to check other lines
+                  }
                 }
+                
+                if (orderLanguage) break; // Found the language, no need to check other properties
               }
-            });
+            }
           }
-        });
-        return orderLanguage && allowedLanguages.includes(orderLanguage);
+          
+          if (orderLanguage) break; // Found the language, no need to check other items
+        }
+        
+        // Log if no language was detected for debugging
+        if (!orderLanguage) {
+          console.log(`Order ${order.name}: No language detected in any format.`);
+          return false;
+        }
+        
+        // Check if the detected language is in the allowed languages for this user
+        const isAllowed = allowedLanguages.includes(orderLanguage);
+        console.log(`Order ${order.name}: Language ${orderLanguage} is ${isAllowed ? 'allowed' : 'not allowed'} for this user.`);
+        return isAllowed;
       });
     }
     
