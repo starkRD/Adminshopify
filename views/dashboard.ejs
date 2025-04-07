@@ -25,15 +25,6 @@
   <!-- Changed container to container-fluid for full width -->
   <div class="container-fluid my-4">
     <h1 class="mb-4 text-center">Order Dashboard</h1>
-    
-    <!-- Unfulfilled Orders Summary -->
-    <div class="mb-4 text-center">
-      <h2>Summary</h2>
-      <p>Total Unfulfilled Orders: <span id="total-unfulfilled"></span></p>
-      <p>Unfulfilled Orders by Language:</p>
-      <ul id="language-unfulfilled"></ul>
-    </div>
-
     <div class="mb-3 text-center">
       Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
     </div>
@@ -198,34 +189,6 @@
   </div>
 
   <script>
-    // Calculate and display unfulfilled orders summary
-    function calculateUnfulfilledOrders(orders) {
-      var totalUnfulfilled = 0;
-      var languageUnfulfilled = {};
-
-      orders.forEach(function(order) {
-        if (!order.fulfilled) {
-          totalUnfulfilled++;
-          var language = order.language || 'Unknown';
-          if (!languageUnfulfilled[language]) {
-            languageUnfulfilled[language] = 0;
-          }
-          languageUnfulfilled[language]++;
-        }
-      });
-
-      document.getElementById('total-unfulfilled').innerText = totalUnfulfilled;
-      var languageUnfulfilledList = document.getElementById('language-unfulfilled');
-      languageUnfulfilledList.innerHTML = '';
-      for (var language in languageUnfulfilled) {
-        var listItem = document.createElement('li');
-        listItem.innerText = language + ': ' + languageUnfulfilled[language];
-        languageUnfulfilledList.appendChild(listItem);
-      }
-    }
-
-    calculateUnfulfilledOrders(<%= JSON.stringify(orders) %>);
-
     // For admin users, enable real-time feedback updates on blur.
     if ("<%= role %>" === "admin") {
       document.querySelectorAll('.feedback-field').forEach(function(field) {
