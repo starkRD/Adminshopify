@@ -22,13 +22,13 @@
   </style>
 </head>
 <body class="bg-light">
-  <!-- Changed container to container-fluid for full width -->
+  <!-- Container for full width -->
   <div class="container-fluid my-4">
     <h1 class="mb-4 text-center">Order Dashboard</h1>
     <div class="mb-3 text-center">
       Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
     </div>
-    <!-- Statistics section - add this right after the login info div -->
+    <!-- Statistics section -->
     <div class="container-fluid mb-4">
       <div class="row">
         <div class="col-md-6">
@@ -38,9 +38,10 @@
               <% 
                 var unfulfilled = 0;
                 orders.forEach(function(order) {
-                  // Assuming fulfillment is tracked via these checkboxes,
-                  // You can adjust the logic as needed.
-                  unfulfilled++;
+                  // Adjust this logic if needed.
+                  if (!order.done) {
+                    unfulfilled++;
+                  }
                 });
               %>
               <h2 class="text-primary"><%= unfulfilled %></h2>
@@ -89,7 +90,7 @@
     
     <div class="table-responsive">
       <table class="table table-bordered table-striped align-middle">
-        <!-- Define fixed column widths here -->
+        <!-- Define fixed column widths -->
         <colgroup>
           <col style="width:7%;">
           <col style="width:10%;">
@@ -179,7 +180,6 @@
                             var propName = prop.name.toLowerCase();
                             var displayValue = prop.value;
                             var shouldHide = false;
-
                             // For properties from "Form Data", filter confidential info for viewers
                             if (propName.includes('form data')) {
                               if (role === 'viewer') {
@@ -241,17 +241,17 @@
 
               <!-- Done Checkbox -->
               <td class="text-center">
-                <input type="checkbox" name="done" data-order-id="<%= order.id %>" class="status-checkbox done-checkbox">
+                <input type="checkbox" name="done" data-order-id="<%= order.id %>" class="status-checkbox done-checkbox" <%= order.done ? 'checked' : '' %>>
               </td>
               
               <!-- Editing Checkbox -->
               <td class="text-center">
-                <input type="checkbox" name="editing" data-order-id="<%= order.id %>" class="status-checkbox editing-checkbox">
+                <input type="checkbox" name="editing" data-order-id="<%= order.id %>" class="status-checkbox editing-checkbox" <%= order.editing ? 'checked' : '' %>>
               </td>
               
               <!-- Delivered Checkbox -->
               <td class="text-center">
-                <input type="checkbox" name="delivered" data-order-id="<%= order.id %>" class="status-checkbox delivered-checkbox">
+                <input type="checkbox" name="delivered" data-order-id="<%= order.id %>" class="status-checkbox delivered-checkbox" <%= order.delivered ? 'checked' : '' %>>
               </td>
             </tr>
           <% }); %>
@@ -261,35 +261,29 @@
   </div>
 
   <script>
-    // For admin users, enable real-time feedback updates on blur.
-    if ("<%= role %>" === "admin") {
-      document.querySelectorAll('.feedback-field').forEach(function(field) {
-        field.addEventListener('blur', function() {
-          var orderId = this.getAttribute('data-order-id');
-          var feedback = this.value;
-          fetch('/update-feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: orderId, feedback: feedback })
-          })
-          .then(response => response.json())
-          .then(data => console.log("Feedback saved:", data))
-          .catch(err => console.error("Error saving feedback:", err));
-        });
+    // For admin users, update feedback on blur.
+    document.querySelectorAll('.feedback-field').forEach(function(field) {
+      field.addEventListener('blur', function() {
+        var orderId = this.getAttribute('data-order-id');
+        var feedback = this.value;
+        fetch('/update-feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: orderId, feedback: feedback })
+        })
+        .then(response => response.json())
+        .then(data => console.log("Feedback saved:", data))
+        .catch(err => console.error("Error saving feedback:", err));
       });
-    }
+    });
 
-    // Add event listeners for all copy buttons (silent copy)
+    // Silent copy functionality.
     document.querySelectorAll('.copy-btn').forEach(function(button) {
       button.addEventListener('click', function() {
         var orderId = this.getAttribute('data-order-id');
         var detailsElement = document.getElementById('order-details-' + orderId);
         if (detailsElement) {
-          var textToCopy = detailsElement.innerText;
-          navigator.clipboard.writeText(textToCopy)
-            .then(function() {
-              // Copy succeeded, do nothing (silent)
-            })
+          navigator.clipboard.writeText(detailsElement.innerText)
             .catch(function(err) {
               console.error('Failed to copy text:', err);
             });
@@ -297,7 +291,7 @@
       });
     });
 
-    // Add event listeners for status checkboxes (Done, Editing, Delivered)
+    // Update order status when any status checkbox changes.
     document.querySelectorAll('.status-checkbox').forEach(function(checkbox) {
       checkbox.addEventListener('change', function() {
         var orderId = this.getAttribute('data-order-id');
