@@ -259,19 +259,11 @@
   <script>
     // Add event listeners for feedback fields
     document.querySelectorAll('.feedback-field').forEach(function(field) {
-      field.addEventListener('input', function() {
-        // Store the current value when input changes
-        field.setAttribute('data-current-value', field.value);
-      });
-      
       field.addEventListener('blur', function() {
         var orderId = this.getAttribute('data-order-id');
         var feedback = this.value;
         
-        // Check if value has changed
-        if (field.getAttribute('data-current-value') !== field.getAttribute('value')) {
-          updateOrderData(orderId, { feedback: feedback });
-        }
+        updateOrderData(orderId, { note: feedback });
       });
     });
 
@@ -312,7 +304,7 @@
         if (checkboxName === 'delivered' && isChecked) {
           var feedbackField = document.querySelector('.feedback-field[data-order-id="'+orderId+'"]');
           if (feedbackField) {
-            updateData.feedback = feedbackField.value;
+            updateData.note = feedbackField.value;
           }
         }
         
@@ -322,17 +314,10 @@
     
     // Function to update order data
     function updateOrderData(orderId, updateData) {
-      // Show loading indicator or disable relevant elements
-      var relatedElements = document.querySelectorAll('[data-order-id="'+orderId+'"]');
-      relatedElements.forEach(function(el) {
-        el.classList.add('disabled');
-      });
-      
       fetch('/update-order', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': '<%= csrfToken %>' // Assuming you're using CSRF protection
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           orderId: orderId,
@@ -347,41 +332,9 @@
       })
       .then(data => {
         console.log("Order updated:", data);
-        
-        // Update UI to reflect the changes
-        if (updateData.feedback !== undefined) {
-          var feedbackField = document.querySelector('.feedback-field[data-order-id="'+orderId+'"]');
-          if (feedbackField) {
-            feedbackField.value = updateData.feedback;
-            feedbackField.setAttribute('value', updateData.feedback);
-            feedbackField.setAttribute('data-current-value', updateData.feedback);
-          }
-        }
-        
-        // If all checkboxes were provided in the update, update them all
-        ['done', 'editing', 'delivered'].forEach(function(status) {
-          if (updateData[status] !== undefined) {
-            var checkbox = document.querySelector('input[name="'+status+'"][data-order-id="'+orderId+'"]');
-            if (checkbox) {
-              checkbox.checked = updateData[status];
-            }
-          }
-        });
-        
-        // Remove loading state
-        relatedElements.forEach(function(el) {
-          el.classList.remove('disabled');
-        });
       })
       .catch(err => {
         console.error("Error updating order:", err);
-        
-        // Remove loading state and show error
-        relatedElements.forEach(function(el) {
-          el.classList.remove('disabled');
-        });
-        
-        // Optionally revert changes or show error notification
         alert("Failed to update order. Please try again.");
       });
     }
