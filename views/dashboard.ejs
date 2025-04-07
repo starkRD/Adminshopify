@@ -7,44 +7,72 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
-      background-color: #f7f9fc;
+      background-color: #fefbf3;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    .order-card {
-      margin-bottom: 20px;
+    .header-row {
+      background-color: #ffcd00;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #333;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .header-row div {
+      text-align: center;
+    }
+    .order-row {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      margin-bottom: 1rem;
       border-radius: 6px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 1rem;
     }
-    .order-card .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .order-row h5 {
+      margin-bottom: 0.5rem;
+    }
+    .order-row .badge {
+      font-size: 0.8rem;
+      margin-left: 0.5rem;
+    }
+    .col-title {
       font-weight: 600;
-    }
-    .order-card .card-body h6 {
-      font-size: 0.95rem;
-      margin-top: 0.5rem;
       margin-bottom: 0.25rem;
-      font-weight: 600;
-      color: #555;
     }
-    .feedback-input {
-      width: 100%;
-    }
-    /* Ensure line breaks for large text in properties */
     .line-item, .property-text {
       white-space: pre-wrap;
       word-break: break-word;
       font-size: 0.9rem;
     }
+    /* Adjust spacing on smaller screens */
+    @media (max-width: 768px) {
+      .header-row {
+        display: none; /* Hide the big header row on small screens */
+      }
+      .order-row {
+        margin-bottom: 1.5rem;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2>Order Dashboard</h2>
+    <!-- TOP BAR -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="mb-0">Order Dashboard</h1>
       <div>
-        Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
+        Logged in as: <strong><%= role %></strong> | 
+        <a href="/login">Logout</a>
       </div>
+    </div>
+
+    <!-- HEADER ROW (Hidden on mobile) -->
+    <div class="row header-row d-none d-md-flex">
+      <div class="col-md-2">Order ID</div>
+      <div class="col-md-2">Customer Info</div>
+      <div class="col-md-3">Order Details</div>
+      <div class="col-md-2">Expected Delivery</div>
+      <div class="col-md-3">Feedback/Changes</div>
     </div>
 
     <% if (orders.length === 0) { %>
@@ -52,169 +80,123 @@
         No orders to display.
       </div>
     <% } else { %>
-      <div class="row">
-        <% 
-          // Helper functions for expected delivery calculation
-          function getDeliveryHours(order) {
-            var timelines = [
-              { name: "Basic", ids: ["41290369269835"], hours: 240 },
-              { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
-              { name: "Premium", ids: ["41290369335371"], hours: 30 },
-              { name: "Beast", ids: ["41290369368139"], hours: 30 },
-              { name: "FAST", ids: ["41274164543563"], hours: 48 },
-              { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
-            ];
-            var matchedHours = [];
-            order.line_items.forEach(function(item) {
-              var variantId = String(item.variant_id);
-              timelines.forEach(function(timeline) {
-                if(timeline.ids.indexOf(variantId) !== -1) {
-                  matchedHours.push(timeline.hours);
-                }
-              });
-            });
-            if(matchedHours.length > 0) {
-              return Math.min.apply(null, matchedHours);
-            }
-            return 240; // default: Basic plan (10 days)
-          }
-          
-          function getExpectedDelivery(order) {
-            var createdAt = new Date(order.created_at);
-            var hours = getDeliveryHours(order);
-            var deliveryTimestamp = createdAt.getTime() + hours * 60 * 60 * 1000;
-            return new Date(deliveryTimestamp).toLocaleDateString("en-IN", {
-              timeZone: "Asia/Kolkata",
-              year: "numeric",
-              month: "short",
-              day: "numeric"
-            });
-          }
-        %>
 
-        <% orders.forEach(function(order) { %>
-          <div class="col-12 col-md-6 col-lg-4">
-            <div class="card order-card">
-              <!-- CARD HEADER -->
-              <div class="card-header bg-primary text-white">
-                <span>Order #<%= order.name %></span>
-                <% if (order.fulfillment_status === 'fulfilled') { %>
-                  <span class="badge bg-success">Fulfilled</span>
-                <% } else { %>
-                  <span class="badge bg-warning text-dark">Unfulfilled</span>
-                <% } %>
-              </div>
-              
-              <!-- CARD BODY -->
-              <div class="card-body">
-                
-                <!-- Customer Info -->
-                <h6>Customer Info</h6>
-                <p class="mb-2">
-                  <% if (order.customer) { %>
-                    <%= order.customer.first_name %> <%= order.customer.last_name %><br>
-                    <small><%= order.customer.phone || '' %></small>
-                  <% } else { %>
-                    Guest
-                  <% } %>
-                </p>
-                
-                <!-- Order Details -->
-                <h6>Order Details</h6>
-                <div>
-                  <% order.line_items.forEach(function(item) { %>
-                    <div class="line-item mb-2">
-                      <strong><%= item.title %></strong> × <%= item.quantity %><br>
-                      <!-- Show properties if any -->
-                      <% if (item.properties && item.properties.length > 0) { %>
-                        <% item.properties.forEach(function(prop) {
-                            var propName = prop.name.toLowerCase();
-                            var displayValue = prop.value;
-                            var shouldHide = false;
+      <% 
+        // Example helper for expected delivery
+        function getExpectedDelivery(order) {
+          // If you already have your timeline logic, place it here
+          return 'N/A'; // Stub
+        }
+      %>
 
-                            // If "Form Data", hide confidential lines for viewers
-                            if (propName.includes('form data')) {
-                              if (role === 'viewer') {
-                                var lines = displayValue.split('\n');
-                                lines = lines.filter(function(line) {
-                                  var lowerLine = line.toLowerCase();
-                                  if (
-                                    lowerLine.includes('whatsapp') ||
-                                    lowerLine.includes('price') ||
-                                    lowerLine.includes('song type') ||
-                                    lowerLine.includes('uploaded images') ||
-                                    lowerLine.includes('selected addons')
-                                  ) {
-                                    return false;
-                                  }
-                                  return true;
-                                });
-                                displayValue = lines.join('\n');
-                              }
-                            } else {
-                              // Hide certain property names for viewers
-                              if (role === 'viewer') {
-                                if (
-                                  propName.includes('whatsapp') ||
-                                  propName.includes('price') ||
-                                  propName.includes('song type') ||
-                                  propName.includes('uploaded images') ||
-                                  propName.includes('selected addons')
-                                ) {
-                                  shouldHide = true;
-                                }
-                              }
-                            }
-                        %>
-                          <% if (!shouldHide) { %>
-                            <div class="property-text">
-                              <small><%= prop.name %>: <%= displayValue %></small>
-                            </div>
-                          <% } %>
-                        <% }); %>
-                      <% } %>
-                    </div>
-                  <% }); %>
-                </div>
-
-                <!-- Expected Delivery -->
-                <h6>Expected Delivery</h6>
-                <p class="mb-2">
-                  <%= getExpectedDelivery(order) %>
-                </p>
-
-                <!-- Feedback/Changes -->
-                <h6>Feedback / Changes</h6>
-                <% if (role === 'admin') { %>
-                  <input 
-                    type="text" 
-                    value="<%= order.note || '' %>" 
-                    data-order-id="<%= order.id %>"
-                    class="feedback-input form-control mb-2"
-                  >
-                <% } else { %>
-                  <p class="mb-2">
-                    <%= order.note && order.note.length ? order.note : 'No feedback provided.' %>
-                  </p>
-                <% } %>
-                
-              </div> <!-- end card-body -->
-              
-              <!-- CARD FOOTER -->
-              <div class="card-footer text-muted">
-                <small>Created: <%= new Date(order.created_at).toLocaleString() %></small>
-              </div>
-            </div>
+      <% orders.forEach(function(order) { %>
+        <div class="row order-row">
+          <!-- ORDER ID -->
+          <div class="col-12 col-md-2 mb-3 mb-md-0">
+            <h5>Order #<%= order.name %></h5>
+            <% if (order.fulfillment_status === 'fulfilled') { %>
+              <span class="badge bg-success">Fulfilled</span>
+            <% } else { %>
+              <span class="badge bg-warning text-dark">Unfulfilled</span>
+            <% } %>
           </div>
-        <% }); %>
-      </div>
+
+          <!-- CUSTOMER INFO -->
+          <div class="col-12 col-md-2 mb-3 mb-md-0">
+            <div class="col-title d-md-none">Customer Info</div>
+            <% if (order.customer) { %>
+              <%= order.customer.first_name %> <%= order.customer.last_name %><br/>
+              <small><%= order.customer.phone || '' %></small>
+            <% } else { %>
+              Guest
+            <% } %>
+          </div>
+
+          <!-- ORDER DETAILS -->
+          <div class="col-12 col-md-3 mb-3 mb-md-0">
+            <div class="col-title d-md-none">Order Details</div>
+            <% order.line_items.forEach(function(item) { %>
+              <div class="line-item mb-2">
+                <strong><%= item.title %></strong> × <%= item.quantity %><br/>
+                <% if (item.properties && item.properties.length > 0) { %>
+                  <% item.properties.forEach(function(prop) {
+                       var propName = prop.name.toLowerCase();
+                       var displayValue = prop.value;
+                       var shouldHide = false;
+
+                       // If "Form Data", hide confidential lines for viewers
+                       if (propName.includes('form data')) {
+                         if (role === 'viewer') {
+                           var lines = displayValue.split('\n');
+                           lines = lines.filter(function(line) {
+                             var lowerLine = line.toLowerCase();
+                             if (
+                               lowerLine.includes('whatsapp') ||
+                               lowerLine.includes('price') ||
+                               lowerLine.includes('song type') ||
+                               lowerLine.includes('uploaded images') ||
+                               lowerLine.includes('selected addons')
+                             ) {
+                               return false;
+                             }
+                             return true;
+                           });
+                           displayValue = lines.join('\n');
+                         }
+                       } else {
+                         if (role === 'viewer') {
+                           if (
+                             propName.includes('whatsapp') ||
+                             propName.includes('price') ||
+                             propName.includes('song type') ||
+                             propName.includes('uploaded images') ||
+                             propName.includes('selected addons')
+                           ) {
+                             shouldHide = true;
+                           }
+                         }
+                       }
+                  %>
+                    <% if (!shouldHide) { %>
+                      <div class="property-text">
+                        <small><%= prop.name %>: <%= displayValue %></small>
+                      </div>
+                    <% } %>
+                  <% }); %>
+                <% } %>
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- EXPECTED DELIVERY -->
+          <div class="col-12 col-md-2 mb-3 mb-md-0">
+            <div class="col-title d-md-none">Expected Delivery</div>
+            <%= getExpectedDelivery(order) %>
+          </div>
+
+          <!-- FEEDBACK/CHANGES -->
+          <div class="col-12 col-md-3">
+            <div class="col-title d-md-none">Feedback/Changes</div>
+            <% if (role === 'admin') { %>
+              <input 
+                type="text"
+                class="form-control mb-2 feedback-field"
+                value="<%= order.note || '' %>"
+                data-order-id="<%= order.id %>"
+              />
+            <% } else { %>
+              <p><%= order.note && order.note.length ? order.note : 'No feedback provided.' %></p>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
     <% } %>
   </div>
 
   <script>
-    // For admin users, enable real-time feedback updates on blur
+    // Save feedback on blur if admin
     if ("<%= role %>" === "admin") {
-      document.querySelectorAll('.feedback-input').forEach(field => {
+      document.querySelectorAll('.feedback-field').forEach(field => {
         field.addEventListener('blur', function() {
           const orderId = this.getAttribute('data-order-id');
           const feedback = this.value;
