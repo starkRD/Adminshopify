@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const cookieSession = require('cookie-session');
 const path = require('path');
+const { Pool } = require('pg'); // Import pg for local Neon queries
 
 // NEW: Import the Neon API handlers from the api folder
 const updateOrderHandler = require('./api/update-order.js');
@@ -146,15 +147,58 @@ function parseNextLink(linkHeader) {
 }
 
 // ---------------------------
-// DASHBOARD ROUTE (UPDATED)
+// NEW: HELPER: FETCH LOCAL ORDERS FROM NEON
+// ---------------------------
+async function fetchLocalOrders() {
+  try {
+    // Create a new pool for local orders if not already created
+    const localPool = new Pool({
+      connectionString: process.env.NEON_DATABASE_URL,
+    });
+    const result = await localPool.query('SELECT * FROM orders');
+    const localMap = {};
+    for (const row of result.rows) {
+      localMap[row.order_id] = {
+        note: row.note,
+        done: row.done,
+        editing: row.editing,
+        delivered: row.delivered,
+      };
+    }
+    return localMap;
+  } catch (error) {
+    console.error("Error fetching local orders from Neon:", error);
+    return {};
+  }
+}
+
+// ---------------------------
+// DASHBOARD ROUTE (UPDATED TO MERGE LOCAL DATA)
 // ---------------------------
 app.get('/dashboard', requireLogin, async (req, res) => {
   const shop = SHOPIFY_SHOP_DOMAIN;
   const accessToken = SHOPIFY_ACCESS_TOKEN;
 
   try {
+    // Fetch orders from Shopify
     let orders = await fetchAllOrders(shop, accessToken);
 
+    // Fetch local updates from Neon
+    let localMap = await fetchLocalOrders();
+
+    // Merge local data into each Shopify order
+    // (Assuming order.name is used as the unique identifier; adjust if you use order.id)
+    orders.forEach(order => {
+      if (localMap[order.name]) {
+        const local = localMap[order.name];
+        order.note = local.note;
+        order.done = local.done;
+        order.editing = local.editing;
+        order.delivered = local.delivered;
+      }
+    });
+
+    // Existing filtering logic for non-admin users
     if (req.session.role !== 'admin') {
       const allowedLanguages = req.session.languages?.map(lang => lang.toLowerCase()) || [];
       let filteredOrders = [];
@@ -172,7 +216,6 @@ app.get('/dashboard', requireLogin, async (req, res) => {
                 foundLanguage = true;
                 break;
               }
-
               if (prop.name.toLowerCase().includes('form data')) {
                 const lines = prop.value.split('\n').map(line => line.trim());
                 for (const line of lines) {
@@ -183,7 +226,6 @@ app.get('/dashboard', requireLogin, async (req, res) => {
                   }
                 }
               }
-
               if (foundLanguage) break;
             }
           }
