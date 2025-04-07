@@ -9,70 +9,106 @@
     body {
       background-color: #fefbf3;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
     }
-    .header-row {
-      background-color: #ffcd00;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: #333;
-      padding: 0.75rem;
-      margin-bottom: 1rem;
+    .container {
+      max-width: 95%;
+      margin: 1rem auto;
     }
-    .header-row div {
-      text-align: center;
-    }
-    .order-row {
-      background-color: #fff;
-      border: 1px solid #ddd;
-      margin-bottom: 1rem;
-      border-radius: 6px;
-      padding: 1rem;
-    }
-    .order-row h5 {
+    /* Header and top bar styling */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 0.5rem;
     }
-    .order-row .badge {
-      font-size: 0.8rem;
-      margin-left: 0.5rem;
+    .top-bar h1 {
+      font-size: 1.5rem;
+      margin: 0;
     }
-    .col-title {
+    /* Header row: controlling column widths with flex basis */
+    .header-row, .order-row {
+      display: flex;
+      flex-wrap: wrap; /* So columns wrap on smaller screens */
+      background-color: #fff;
+      border: 1px solid #ddd;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+    }
+    .header-row > div, .order-row > div {
+      padding: 0.5rem;
+      font-size: 0.9rem;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    /* Specific widths for columns on desktop */
+    .col-order-id {
+      flex: 0 0 7%;
+      max-width: 7%;
+    }
+    .col-customer-info {
+      flex: 0 0 10%;
+      max-width: 10%;
+    }
+    .col-order-details {
+      flex: 0 0 55%;
+      max-width: 55%;
+    }
+    .col-expected-delivery {
+      flex: 0 0 6%;
+      max-width: 6%;
+    }
+    .col-feedback-changes {
+      flex: 0 0 22%;
+      max-width: 22%;
+    }
+    /* Bold headings in the header row */
+    .header-row {
+      background-color: #ffcd00;
+      color: #333;
       font-weight: 600;
+      text-transform: uppercase;
+    }
+    /* Minimal styling for badges, etc. */
+    .badge {
+      font-size: 0.75rem;
+    }
+    /* Mobile adjustments: let columns wrap fully */
+    @media (max-width: 768px) {
+      .col-order-id,
+      .col-customer-info,
+      .col-order-details,
+      .col-expected-delivery,
+      .col-feedback-changes {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+      }
+      .header-row {
+        display: none; /* Hide big header row on mobile */
+      }
+      .top-bar h1 {
+        font-size: 1.25rem;
+      }
+    }
+    /* For clarity, separate line items with minimal spacing */
+    .line-item {
       margin-bottom: 0.25rem;
     }
-    .line-item, .property-text {
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-size: 0.9rem;
-    }
-    /* Adjust spacing on smaller screens */
-    @media (max-width: 768px) {
-      .header-row {
-        display: none; /* Hide the big header row on small screens */
-      }
-      .order-row {
-        margin-bottom: 1.5rem;
-      }
+    .line-item strong {
+      font-size: 0.95rem;
     }
   </style>
 </head>
 <body>
-  <div class="container py-4">
+  <div class="container">
     <!-- TOP BAR -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h1 class="mb-0">Order Dashboard</h1>
+    <div class="top-bar">
+      <h1>Order Dashboard</h1>
       <div>
         Logged in as: <strong><%= role %></strong> | 
         <a href="/login">Logout</a>
       </div>
-    </div>
-
-    <!-- HEADER ROW (Hidden on mobile) -->
-    <div class="row header-row d-none d-md-flex">
-      <div class="col-md-2">Order ID</div>
-      <div class="col-md-2">Customer Info</div>
-      <div class="col-md-3">Order Details</div>
-      <div class="col-md-2">Expected Delivery</div>
-      <div class="col-md-3">Feedback/Changes</div>
     </div>
 
     <% if (orders.length === 0) { %>
@@ -80,20 +116,32 @@
         No orders to display.
       </div>
     <% } else { %>
+      <!-- HEADER ROW (desktop only) -->
+      <div class="header-row d-none d-md-flex">
+        <div class="col-order-id">Order ID</div>
+        <div class="col-customer-info">Customer Info</div>
+        <div class="col-order-details">Order Details</div>
+        <div class="col-expected-delivery">Delivery</div>
+        <div class="col-feedback-changes">Feedback/Changes</div>
+      </div>
 
       <% 
-        // Example helper for expected delivery
+        // Example helper function for expected delivery
         function getExpectedDelivery(order) {
-          // If you already have your timeline logic, place it here
-          return 'N/A'; // Stub
+          // Insert your actual logic here
+          return 'N/A'; 
         }
       %>
 
-      <% orders.forEach(function(order) { %>
-        <div class="row order-row">
+      <% orders.forEach(order => { %>
+        <div class="order-row">
           <!-- ORDER ID -->
-          <div class="col-12 col-md-2 mb-3 mb-md-0">
-            <h5>Order #<%= order.name %></h5>
+          <div class="col-order-id">
+            <!-- Show heading on mobile -->
+            <div class="d-md-none font-weight-bold">Order ID</div>
+            <div style="font-weight:600;">
+              #<%= order.name %>
+            </div>
             <% if (order.fulfillment_status === 'fulfilled') { %>
               <span class="badge bg-success">Fulfilled</span>
             <% } else { %>
@@ -102,8 +150,9 @@
           </div>
 
           <!-- CUSTOMER INFO -->
-          <div class="col-12 col-md-2 mb-3 mb-md-0">
-            <div class="col-title d-md-none">Customer Info</div>
+          <div class="col-customer-info">
+            <!-- Show heading on mobile -->
+            <div class="d-md-none font-weight-bold">Customer Info</div>
             <% if (order.customer) { %>
               <%= order.customer.first_name %> <%= order.customer.last_name %><br/>
               <small><%= order.customer.phone || '' %></small>
@@ -113,54 +162,53 @@
           </div>
 
           <!-- ORDER DETAILS -->
-          <div class="col-12 col-md-3 mb-3 mb-md-0">
-            <div class="col-title d-md-none">Order Details</div>
-            <% order.line_items.forEach(function(item) { %>
-              <div class="line-item mb-2">
+          <div class="col-order-details">
+            <!-- Show heading on mobile -->
+            <div class="d-md-none font-weight-bold">Order Details</div>
+            <% order.line_items.forEach(item => { %>
+              <div class="line-item">
                 <strong><%= item.title %></strong> × <%= item.quantity %><br/>
                 <% if (item.properties && item.properties.length > 0) { %>
-                  <% item.properties.forEach(function(prop) {
-                       var propName = prop.name.toLowerCase();
-                       var displayValue = prop.value;
-                       var shouldHide = false;
+                  <% item.properties.forEach(prop => {
+                      var propName = prop.name.toLowerCase();
+                      var displayValue = prop.value;
+                      var shouldHide = false;
 
-                       // If "Form Data", hide confidential lines for viewers
-                       if (propName.includes('form data')) {
-                         if (role === 'viewer') {
-                           var lines = displayValue.split('\n');
-                           lines = lines.filter(function(line) {
-                             var lowerLine = line.toLowerCase();
-                             if (
-                               lowerLine.includes('whatsapp') ||
-                               lowerLine.includes('price') ||
-                               lowerLine.includes('song type') ||
-                               lowerLine.includes('uploaded images') ||
-                               lowerLine.includes('selected addons')
-                             ) {
-                               return false;
-                             }
-                             return true;
-                           });
-                           displayValue = lines.join('\n');
-                         }
-                       } else {
-                         if (role === 'viewer') {
-                           if (
-                             propName.includes('whatsapp') ||
-                             propName.includes('price') ||
-                             propName.includes('song type') ||
-                             propName.includes('uploaded images') ||
-                             propName.includes('selected addons')
-                           ) {
-                             shouldHide = true;
-                           }
-                         }
-                       }
+                      // Hide confidential lines if viewer
+                      if (propName.includes('form data')) {
+                        if (role === 'viewer') {
+                          var lines = displayValue.split('\n');
+                          lines = lines.filter(function(line) {
+                            var lowerLine = line.toLowerCase();
+                            if (
+                              lowerLine.includes('whatsapp') ||
+                              lowerLine.includes('price') ||
+                              lowerLine.includes('song type') ||
+                              lowerLine.includes('uploaded images') ||
+                              lowerLine.includes('selected addons')
+                            ) {
+                              return false;
+                            }
+                            return true;
+                          });
+                          displayValue = lines.join('\n');
+                        }
+                      } else {
+                        if (role === 'viewer') {
+                          if (
+                            propName.includes('whatsapp') ||
+                            propName.includes('price') ||
+                            propName.includes('song type') ||
+                            propName.includes('uploaded images') ||
+                            propName.includes('selected addons')
+                          ) {
+                            shouldHide = true;
+                          }
+                        }
+                      }
                   %>
                     <% if (!shouldHide) { %>
-                      <div class="property-text">
-                        <small><%= prop.name %>: <%= displayValue %></small>
-                      </div>
+                      <small><%= prop.name %>: <%= displayValue %></small><br/>
                     <% } %>
                   <% }); %>
                 <% } %>
@@ -169,23 +217,25 @@
           </div>
 
           <!-- EXPECTED DELIVERY -->
-          <div class="col-12 col-md-2 mb-3 mb-md-0">
-            <div class="col-title d-md-none">Expected Delivery</div>
+          <div class="col-expected-delivery">
+            <!-- Show heading on mobile -->
+            <div class="d-md-none font-weight-bold">Delivery</div>
             <%= getExpectedDelivery(order) %>
           </div>
 
           <!-- FEEDBACK/CHANGES -->
-          <div class="col-12 col-md-3">
-            <div class="col-title d-md-none">Feedback/Changes</div>
+          <div class="col-feedback-changes">
+            <!-- Show heading on mobile -->
+            <div class="d-md-none font-weight-bold">Feedback/Changes</div>
             <% if (role === 'admin') { %>
               <input 
                 type="text"
-                class="form-control mb-2 feedback-field"
+                class="form-control feedback-field"
                 value="<%= order.note || '' %>"
                 data-order-id="<%= order.id %>"
               />
             <% } else { %>
-              <p><%= order.note && order.note.length ? order.note : 'No feedback provided.' %></p>
+              <p class="mb-0"><%= order.note && order.note.length ? order.note : 'No feedback provided.' %></p>
             <% } %>
           </div>
         </div>
