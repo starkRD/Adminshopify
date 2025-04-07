@@ -2,108 +2,151 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Order Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background-color: #f7f9fc; }
-    .order-card { margin-bottom: 20px; }
-    .order-header { font-size: 1.2rem; font-weight: bold; }
-    .order-detail { margin-bottom: 10px; }
-    .feedback-input { width: 100%; }
-    /* Make cards responsive and avoid horizontal scroll */
-    @media (max-width: 768px) {
-      .order-card { margin-bottom: 15px; }
+    body {
+      background-color: #f7f9fc;
+    }
+    .table th, .table td {
+      vertical-align: middle;
+    }
+    .feedback-input {
+      width: 100%;
+    }
+    /* Make line items smaller text for clarity */
+    .line-item {
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
   <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
       <h2>Order Dashboard</h2>
       <div>
         Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
       </div>
     </div>
-    
+
     <% if (orders.length === 0) { %>
       <div class="alert alert-warning text-center">
         No orders to display.
       </div>
-    <% } %>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-striped align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>Order #</th>
+              <th>Customer</th>
+              <th>Items &amp; Language</th>
+              <th>Fulfillment</th>
+              <th>Feedback/Changes</th>
+              <th>Comments</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% orders.forEach(order => { %>
+              <% 
+                // Detect language from line item properties
+                let detectedLanguage = null;
+                order.line_items.forEach(item => {
+                  if (item.properties && item.properties.length) {
+                    item.properties.forEach(prop => {
+                      if (prop.name.toLowerCase() === 'language') {
+                        detectedLanguage = prop.value;
+                      } else if (prop.name.toLowerCase().includes('form data')) {
+                        const match = prop.value.match(/language:\s*(.*)/i);
+                        if (match) detectedLanguage = match[1];
+                      }
+                    });
+                  }
+                });
+              %>
+              <tr>
+                <!-- Order # -->
+                <td>
+                  <strong><%= order.name %></strong>
+                </td>
 
-    <div class="row">
-      <% orders.forEach(function(order) { %>
-        <div class="col-12 col-md-6 col-lg-4">
-          <div class="card order-card shadow-sm">
-            <div class="card-header bg-primary text-white">
-              Order: <%= order.name %>
-              <% if (order.fulfillment_status === 'fulfilled') { %>
-                <span class="badge bg-success float-end">Fulfilled</span>
-              <% } else { %>
-                <span class="badge bg-warning text-dark float-end">Unfulfilled</span>
-              <% } %>
-            </div>
-            <div class="card-body">
-              <!-- Customer Info -->
-              <div class="order-detail">
-                <strong>Customer:</strong>
-                <% if (order.customer) { %>
-                  <%= order.customer.first_name %> <%= order.customer.last_name %><br>
-                  <small><%= order.customer.phone %></small>
-                <% } else { %>
-                  Guest
-                <% } %>
-              </div>
-              
-              <!-- Order Details -->
-              <div class="order-detail">
-                <strong>Items:</strong>
-                <ul class="list-unstyled mb-0">
-                  <% order.line_items.forEach(function(item) { %>
-                    <li><%= item.title %> &times; <%= item.quantity %></li>
+                <!-- Customer Info -->
+                <td>
+                  <% if (order.customer) { %>
+                    <%= order.customer.first_name %> <%= order.customer.last_name %><br/>
+                    <small><%= order.customer.phone || '' %></small>
+                  <% } else { %>
+                    Guest
+                  <% } %>
+                </td>
+
+                <!-- Items & Language -->
+                <td style="max-width:300px;">
+                  <!-- List line items -->
+                  <% order.line_items.forEach(item => { %>
+                    <div class="line-item">
+                      <strong><%= item.title %></strong> × <%= item.quantity %>
+                    </div>
                   <% }); %>
-                </ul>
-              </div>
-              
-              <!-- Expected Delivery -->
-              <div class="order-detail">
-                <strong>Expected Delivery:</strong>
-                <%= order.expectedDelivery ? order.expectedDelivery : 'N/A' %>
-              </div>
-              
-              <!-- Feedback/Changes -->
-              <div class="order-detail">
-                <strong>Feedback/Changes:</strong>
-                <% if (role === 'admin') { %>
-                  <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-input form-control">
-                <% } else { %>
-                  <input type="text" value="<%= order.note || '' %>" class="form-control" readonly>
-                <% } %>
-              </div>
-              
-              <!-- Comments -->
-              <div class="order-detail">
-                <strong>Comments:</strong>
-                <% if (order.timelineComments && order.timelineComments.length) { %>
-                  <% order.timelineComments.forEach(function(ev) { %>
-                    <div><%= ev.body %></div>
-                  <% }); %>
-                <% } else { %>
-                  <span>N/A</span>
-                <% } %>
-              </div>
-            </div>
-            <div class="card-footer text-muted">
-              <small>Created: <%= new Date(order.created_at).toLocaleString() %></small>
-            </div>
-          </div>
-        </div>
-      <% }); %>
-    </div>
+                  <hr class="my-1" />
+                  <strong>Language:</strong> <%= detectedLanguage || 'Not specified' %>
+                </td>
+
+                <!-- Fulfillment Status -->
+                <td>
+                  <% if (order.fulfillment_status === 'fulfilled') { %>
+                    <span class="badge bg-success">Fulfilled</span>
+                  <% } else { %>
+                    <span class="badge bg-warning text-dark">Unfulfilled</span>
+                  <% } %>
+                </td>
+
+                <!-- Feedback/Changes -->
+                <td>
+                  <% if (role === 'admin') { %>
+                    <input 
+                      type="text" 
+                      value="<%= order.note || '' %>" 
+                      data-order-id="<%= order.id %>"
+                      class="feedback-input form-control"
+                    />
+                  <% } else { %>
+                    <input 
+                      type="text" 
+                      value="<%= order.note || '' %>" 
+                      class="form-control" 
+                      readonly
+                    />
+                  <% } %>
+                </td>
+
+                <!-- Comments (timeline) -->
+                <td style="max-width:200px;">
+                  <% if (order.timelineComments && order.timelineComments.length) { %>
+                    <% order.timelineComments.forEach(ev => { %>
+                      <div><%= ev.body %></div>
+                    <% }); %>
+                  <% } else { %>
+                    N/A
+                  <% } %>
+                </td>
+
+                <!-- Created At -->
+                <td>
+                  <small><%= new Date(order.created_at).toLocaleString() %></small>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
   </div>
-  
+
   <script>
+    // For admin, save feedback on blur
     if ("<%= role %>" === "admin") {
       document.querySelectorAll('.feedback-input').forEach(field => {
         field.addEventListener('blur', function() {
