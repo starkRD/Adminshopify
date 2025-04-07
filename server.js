@@ -49,41 +49,49 @@ app.post('/login', (req, res) => {
     req.session.loggedIn = true;
     req.session.role = 'admin';
     req.session.languages = null; // Admin sees all orders
+    // Not setting shanu flag for admin
     res.redirect('/dashboard');
   } else if (password === DASHBOARD_SHANU_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
     req.session.shanu = true; // Special flag for Shanu
+    // For Shanu, we do not use req.session.languages
     res.redirect('/dashboard');
   } else if (password === DASHBOARD_HINDI_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
     req.session.languages = ['Hindi'];
+    req.session.shanu = false; // Explicitly set for non-Shanu viewers
     res.redirect('/dashboard');
   } else if (password === DASHBOARD_ENGLISH_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
     req.session.languages = ['English'];
+    req.session.shanu = false;
     res.redirect('/dashboard');
   } else if (password === DASHBOARD_TAMIL_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
     req.session.languages = ['Tamil'];
+    req.session.shanu = false;
     res.redirect('/dashboard');
   } else if (password === DASHBOARD_TELUGU_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
     req.session.languages = ['Telugu'];
+    req.session.shanu = false;
     res.redirect('/dashboard');
   } else if (password === DASHBOARD_KANNADA_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
     req.session.languages = ['Kannada'];
+    req.session.shanu = false;
     res.redirect('/dashboard');
   } else if (password === DASHBOARD_MALAYALAM_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
     req.session.languages = ['Malayalam'];
+    req.session.shanu = false;
     res.redirect('/dashboard');
   } else {
     res.render('login', { error: 'Invalid password. Please try again.' });
@@ -139,7 +147,7 @@ function parseNextLink(linkHeader) {
 }
 
 // ---------------------------
-// HELPER FUNCTION TO EXTRACT LANGUAGE
+// HELPER FUNCTION TO EXTRACT LANGUAGE FROM ORDER
 // ---------------------------
 function extractOrderLanguage(order) {
   let orderLanguage = null;
@@ -148,7 +156,7 @@ function extractOrderLanguage(order) {
       for (const prop of item.properties) {
         const lowerName = prop.name.toLowerCase();
         if (lowerName.includes('language')) {
-          // If it's a "Form Data" property, parse it line by line.
+          // If it's a "Form Data" property, parse line by line.
           if (lowerName.includes('form data')) {
             const lines = prop.value.split('\n').map(line => line.trim()).filter(line => line);
             for (const line of lines) {
@@ -179,33 +187,26 @@ app.get('/dashboard', requireLogin, async (req, res) => {
   try {
     let orders = await fetchAllOrders(shop, accessToken);
     
-    // If user is not admin, filter orders based on language.
+    // If user is not admin, apply filtering.
     if (req.session.role !== 'admin') {
       // Special filtering for Shanu:
       if (req.session.shanu) {
         orders = orders.filter(order => {
           const lang = extractOrderLanguage(order);
-          // Allow orders with no language info
           if (!lang) {
             console.log(`Order ${order.name}: No language detected. Allowing for Shanu.`);
             return true;
           }
-          // Allow orders with language "mix"
           if (lang === 'mix') {
             console.log(`Order ${order.name}: Language mix detected. Allowing for Shanu.`);
             return true;
           }
-          // Block orders with language "telugu" or "kannada"
-          if (lang === 'telugu' || lang === 'kannada') {
-            console.log(`Order ${order.name}: Language ${lang} not allowed for Shanu.`);
-            return false;
-          }
-          // Allow all other orders
-          console.log(`Order ${order.name}: Language ${lang} allowed for Shanu.`);
-          return true;
+          const isAllowed = (lang !== 'telugu' && lang !== 'kannada');
+          console.log(`Order ${order.name}: Detected language: ${lang}. Allowed for Shanu: ${isAllowed}`);
+          return isAllowed;
         });
       } else {
-        // For other viewer roles, use the allowed languages as a whitelist.
+        // For other viewer roles, only allow orders with languages exactly matching the allowed list.
         const allowedLanguages = req.session.languages.map(lang => lang.toLowerCase());
         orders = orders.filter(order => {
           const lang = extractOrderLanguage(order);
