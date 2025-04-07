@@ -2,9 +2,9 @@ const express = require('express');
 const axios = require('axios');
 const cookieSession = require('cookie-session');
 const path = require('path');
-const { Pool } = require('pg'); // Import pg for local Neon queries
+const { Pool } = require('pg'); // For local Neon queries
 
-// NEW: Import the Neon API handlers from the api folder
+// Import the Neon API handlers from the api folder
 const updateOrderHandler = require('./api/update-order.js');
 const getOrdersHandler = require('./api/get-orders.js');
 
@@ -151,7 +151,7 @@ function parseNextLink(linkHeader) {
 // ---------------------------
 async function fetchLocalOrders() {
   try {
-    // Create a new pool for local orders if not already created
+    // Create a new pool for local Neon queries (or reuse one if you prefer)
     const localPool = new Pool({
       connectionString: process.env.NEON_DATABASE_URL,
     });
@@ -187,7 +187,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
     let localMap = await fetchLocalOrders();
 
     // Merge local data into each Shopify order
-    // (Assuming order.name is used as the unique identifier; adjust if you use order.id)
+    // Here we assume that the unique identifier used is order.name.
     orders.forEach(order => {
       if (localMap[order.name]) {
         const local = localMap[order.name];
