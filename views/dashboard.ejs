@@ -96,9 +96,9 @@
           <col style="width:50%;">
           <col style="width:6%;">
           <col style="width:17%;">
-          <col style="width:5%;">  <!-- Done -->
-          <col style="width:5%;">  <!-- Editing -->
-          <col style="width:5%;">  <!-- Delivered -->
+          <col style="width:5%;">
+          <col style="width:5%;">
+          <col style="width:5%;">
         </colgroup>
 
         <thead class="table-dark">
@@ -115,7 +115,6 @@
         </thead>
         <tbody>
           <% 
-            // Helper functions for expected delivery calculation
             function getDeliveryHours(order) {
               var timelines = [
                 { name: "Basic", ids: ["41290369269835"], hours: 240 },
@@ -137,7 +136,7 @@
               if(matchedHours.length > 0) {
                 return Math.min.apply(null, matchedHours);
               }
-              return 240; // default: Basic plan (10 days)
+              return 240;
             }
 
             function getExpectedDelivery(order) {
@@ -155,10 +154,7 @@
 
           <% orders.forEach(function(order) { %>
             <tr>
-              <!-- Order Number -->
               <td><%= order.name %></td>
-
-              <!-- Customer Info -->
               <td>
                 <% if (order.customer) { %>
                   <%= order.customer.first_name %> <%= order.customer.last_name %><br>
@@ -167,8 +163,6 @@
                   Guest
                 <% } %>
               </td>
-
-              <!-- Order Details with Copy Button -->
               <td>
                 <div class="order-details-container" id="order-details-<%= order.id %>">
                   <% order.line_items.forEach(function(item) { %>
@@ -180,36 +174,31 @@
                             var displayValue = prop.value;
                             var shouldHide = false;
 
-                            // For properties from "Form Data", filter confidential info for viewers
-                            if (propName.includes('form data')) {
-                              if (role === 'viewer') {
-                                var lines = displayValue.split('\n');
-                                lines = lines.filter(function(line) {
-                                  var lowerLine = line.toLowerCase();
-                                  if (
-                                    lowerLine.includes('whatsapp') ||
-                                    lowerLine.includes('price') ||
-                                    lowerLine.includes('song type') ||
-                                    lowerLine.includes('uploaded images') ||
-                                    lowerLine.includes('selected addons')
-                                  ) {
-                                    return false;
-                                  }
-                                  return true;
-                                });
-                                displayValue = lines.join('\n');
-                              }
-                            } else {
-                              if (role === 'viewer') {
+                            if (propName.includes('form data') && role === 'viewer') {
+                              var lines = displayValue.split('\n');
+                              lines = lines.filter(function(line) {
+                                var lowerLine = line.toLowerCase();
                                 if (
-                                  propName.includes('whatsapp') ||
-                                  propName.includes('price') ||
-                                  propName.includes('song type') ||
-                                  propName.includes('uploaded images') ||
-                                  propName.includes('selected addons')
+                                  lowerLine.includes('whatsapp') ||
+                                  lowerLine.includes('price') ||
+                                  lowerLine.includes('song type') ||
+                                  lowerLine.includes('uploaded images') ||
+                                  lowerLine.includes('selected addons')
                                 ) {
-                                  shouldHide = true;
+                                  return false;
                                 }
+                                return true;
+                              });
+                              displayValue = lines.join('\n');
+                            } else if (role === 'viewer') {
+                              if (
+                                propName.includes('whatsapp') ||
+                                propName.includes('price') ||
+                                propName.includes('song type') ||
+                                propName.includes('uploaded images') ||
+                                propName.includes('selected addons')
+                              ) {
+                                shouldHide = true;
                               }
                             }
                         %>
@@ -224,28 +213,16 @@
                 </div>
                 <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.id %>">Copy</button>
               </td>
-
-              <!-- Expected Delivery -->
-              <td>
-                <%= getExpectedDelivery(order) %>
-              </td>
-
-              <!-- Feedback/Changes -->
+              <td><%= getExpectedDelivery(order) %></td>
               <td>
                 <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field form-control" <%= role !== 'admin' ? 'readonly' : '' %>>
               </td>
-
-              <!-- Done Checkbox -->
               <td class="text-center">
                 <input type="checkbox" name="done" data-order-id="<%= order.id %>" class="status-checkbox done-checkbox" <%= order.done ? 'checked' : '' %>>
               </td>
-              
-              <!-- Editing Checkbox -->
               <td class="text-center">
                 <input type="checkbox" name="editing" data-order-id="<%= order.id %>" class="status-checkbox editing-checkbox" <%= order.editing ? 'checked' : '' %>>
               </td>
-              
-              <!-- Delivered Checkbox -->
               <td class="text-center">
                 <input type="checkbox" name="delivered" data-order-id="<%= order.id %>" class="status-checkbox delivered-checkbox" <%= order.delivered ? 'checked' : '' %>>
               </td>
@@ -257,87 +234,20 @@
   </div>
 
   <script>
-    // Add event listeners for feedback fields
-    document.querySelectorAll('.feedback-field').forEach(function(field) {
-      field.addEventListener('blur', function() {
-        var orderId = this.getAttribute('data-order-id');
-        var feedback = this.value;
-        
-        updateOrderData(orderId, { note: feedback });
-      });
-    });
+    // No local DB calls - these do nothing or can be removed if you want no updates at all
 
-    // Add event listeners for all copy buttons (silent copy)
     document.querySelectorAll('.copy-btn').forEach(function(button) {
       button.addEventListener('click', function() {
         var orderId = this.getAttribute('data-order-id');
         var detailsElement = document.getElementById('order-details-' + orderId);
         if (detailsElement) {
           var textToCopy = detailsElement.innerText;
-          navigator.clipboard.writeText(textToCopy)
-            .then(function() {
-              // Visual feedback for copy
-              button.innerText = "Copied!";
-              setTimeout(function() {
-                button.innerText = "Copy";
-              }, 1500);
-            })
-            .catch(function(err) {
-              console.error('Failed to copy text:', err);
-            });
+          navigator.clipboard.writeText(textToCopy).catch(function(err) {
+            console.error('Failed to copy text:', err);
+          });
         }
       });
     });
-
-    // Add event listeners for status checkboxes (Done, Editing, Delivered)
-    document.querySelectorAll('.status-checkbox').forEach(function(checkbox) {
-      checkbox.addEventListener('change', function() {
-        var orderId = this.getAttribute('data-order-id');
-        var checkboxName = this.name;
-        var isChecked = this.checked;
-        
-        // Create an object with the specific checkbox that was changed
-        var updateData = {};
-        updateData[checkboxName] = isChecked;
-        
-        // If we check "delivered", also set the feedback from the current input value
-        if (checkboxName === 'delivered' && isChecked) {
-          var feedbackField = document.querySelector('.feedback-field[data-order-id="'+orderId+'"]');
-          if (feedbackField) {
-            updateData.note = feedbackField.value;
-          }
-        }
-        
-        updateOrderData(orderId, updateData);
-      });
-    });
-    
-    // Function to update order data
-    function updateOrderData(orderId, updateData) {
-      fetch('/api/update-order', {  // Updated URL to include /api/
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          orderId: orderId,
-          updates: updateData
-        })
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log("Order updated:", data);
-      })
-      .catch(err => {
-        console.error("Error updating order:", err);
-        alert("Failed to update order. Please try again.");
-      });
-    }
   </script>
 </body>
 </html>
