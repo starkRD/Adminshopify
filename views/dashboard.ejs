@@ -28,80 +28,77 @@
     <div class="mb-3 text-center">
       Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
     </div>
-<!-- Statistics section - add this right after the login info div -->
-<div class="container-fluid mb-4">
-  <div class="row">
-    <div class="col-md-6">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">Total Unfulfilled Orders</h5>
-          <% 
-            var unfulfilled = 0;
-            orders.forEach(function(order) {
-              // Check if order is unfulfilled (based on checkbox being unchecked)
-              // This assumes you're using the checkbox to track fulfillment
-              unfulfilled++;
-            });
-          %>
-          <h2 class="text-primary"><%= unfulfilled %></h2>
+    <!-- Statistics section - add this right after the login info div -->
+    <div class="container-fluid mb-4">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">Total Unfulfilled Orders</h5>
+              <% 
+                var unfulfilled = 0;
+                orders.forEach(function(order) {
+                  // Assuming fulfillment is tracked via these checkboxes,
+                  // You can adjust the logic as needed.
+                  unfulfilled++;
+                });
+              %>
+              <h2 class="text-primary"><%= unfulfilled %></h2>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">Language Breakdown</h5>
-          <% 
-            var languageCounts = {};
-            
-            orders.forEach(function(order) {
-              // Try to find language in order properties
-              var language = "Unknown";
-              
-              if (order.line_items) {
-                order.line_items.forEach(function(item) {
-                  if (item.properties) {
-                    item.properties.forEach(function(prop) {
-                      if (prop.name.toLowerCase().includes('language')) {
-                        language = prop.value || "Unknown";
+        <div class="col-md-6">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">Language Breakdown</h5>
+              <% 
+                var languageCounts = {};
+                orders.forEach(function(order) {
+                  var language = "Unknown";
+                  if (order.line_items) {
+                    order.line_items.forEach(function(item) {
+                      if (item.properties) {
+                        item.properties.forEach(function(prop) {
+                          if (prop.name.toLowerCase().includes('language')) {
+                            language = prop.value || "Unknown";
+                          }
+                        });
                       }
                     });
                   }
+                  if (!languageCounts[language]) {
+                    languageCounts[language] = 0;
+                  }
+                  languageCounts[language]++;
                 });
-              }
-              
-              // Count by language
-              if (!languageCounts[language]) {
-                languageCounts[language] = 0;
-              }
-              languageCounts[language]++;
-            });
-          %>
-          
-          <div class="row">
-            <% for (var lang in languageCounts) { %>
-              <div class="col-auto mb-2">
-                <span class="badge bg-light text-dark border">
-                  <%= lang %>: <%= languageCounts[lang] %>
-                </span>
+              %>
+              <div class="row">
+                <% for (var lang in languageCounts) { %>
+                  <div class="col-auto mb-2">
+                    <span class="badge bg-light text-dark border">
+                      <%= lang %>: <%= languageCounts[lang] %>
+                    </span>
+                  </div>
+                <% } %>
               </div>
-            <% } %>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
+    
     <div class="table-responsive">
       <table class="table table-bordered table-striped align-middle">
         <!-- Define fixed column widths here -->
         <colgroup>
           <col style="width:7%;">
           <col style="width:10%;">
-          <col style="width:55%;">
+          <col style="width:50%;">
           <col style="width:6%;">
-          <col style="width:22%;">
-          <col style="width:5%;"> <!-- Column for Done checkbox -->
+          <col style="width:17%;">
+          <col style="width:5%;">  <!-- Done -->
+          <col style="width:5%;">  <!-- Editing -->
+          <col style="width:5%;">  <!-- Delivered -->
         </colgroup>
 
         <thead class="table-dark">
@@ -112,6 +109,8 @@
             <th>Expected Delivery</th>
             <th>Feedback/Changes</th>
             <th>Done</th>
+            <th>Editing</th>
+            <th>Delivered</th>
           </tr>
         </thead>
         <tbody>
@@ -242,7 +241,17 @@
 
               <!-- Done Checkbox -->
               <td class="text-center">
-                <input type="checkbox" name="done" data-order-id="<%= order.id %>">
+                <input type="checkbox" name="done" data-order-id="<%= order.id %>" class="status-checkbox done-checkbox">
+              </td>
+              
+              <!-- Editing Checkbox -->
+              <td class="text-center">
+                <input type="checkbox" name="editing" data-order-id="<%= order.id %>" class="status-checkbox editing-checkbox">
+              </td>
+              
+              <!-- Delivered Checkbox -->
+              <td class="text-center">
+                <input type="checkbox" name="delivered" data-order-id="<%= order.id %>" class="status-checkbox delivered-checkbox">
               </td>
             </tr>
           <% }); %>
@@ -282,10 +291,33 @@
               // Copy succeeded, do nothing (silent)
             })
             .catch(function(err) {
-              // Copy failed, optionally log to console
               console.error('Failed to copy text:', err);
             });
         }
+      });
+    });
+
+    // Add event listeners for status checkboxes (Done, Editing, Delivered)
+    document.querySelectorAll('.status-checkbox').forEach(function(checkbox) {
+      checkbox.addEventListener('change', function() {
+        var orderId = this.getAttribute('data-order-id');
+        var done = document.querySelector('input[name="done"][data-order-id="'+orderId+'"]').checked;
+        var editing = document.querySelector('input[name="editing"][data-order-id="'+orderId+'"]').checked;
+        var delivered = document.querySelector('input[name="delivered"][data-order-id="'+orderId+'"]').checked;
+        
+        fetch('/update-order-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: orderId,
+            done: done,
+            editing: editing,
+            delivered: delivered
+          })
+        })
+        .then(response => response.json())
+        .then(data => console.log("Order status updated:", data))
+        .catch(err => console.error("Error updating order status:", err));
       });
     });
   </script>
