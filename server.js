@@ -147,19 +147,19 @@ function parseNextLink(linkHeader) {
 }
 
 // ---------------------------
-// NEW: HELPER: FETCH LATEST LOCAL ORDERS FROM NEON (order history)
+// NEW: HELPER: FETCH LATEST LOCAL ORDERS FROM NEON (order_history)
 // ---------------------------
 async function fetchLocalOrders() {
   try {
     const localPool = new Pool({
       connectionString: process.env.NEON_DATABASE_URL,
     });
-    // Query to get the latest update for each order (using DISTINCT ON)
+    // Query to get the latest update for each order using DISTINCT ON
     const query = `
       SELECT DISTINCT ON (order_id) 
         order_id, note, done, editing, delivered, updated_at
       FROM order_history
-      ORDER BY order_id, updated_at DESC
+      ORDER BY order_id, updated_at DESC;
     `;
     const result = await localPool.query(query);
     console.log("Latest local updates from Neon:", result.rows);
@@ -187,16 +187,14 @@ app.get('/dashboard', requireLogin, async (req, res) => {
   const accessToken = SHOPIFY_ACCESS_TOKEN;
 
   try {
-    // Fetch orders from Shopify
+    // 1. Fetch orders from Shopify
     let orders = await fetchAllOrders(shop, accessToken);
 
-    // Fetch the latest local updates from Neon (using order_history)
+    // 2. Fetch the latest local updates from Neon (order_history)
     let localMap = await fetchLocalOrders();
 
-    // Merge local data into each Shopify order using order.number as the key.
-    // If your dashboard.ejs uses order.number as the unique identifier,
-    // then we need to use that here. For example, if an order's number is "1001",
-    // the update should be saved with order_id "1001".
+    // 3. Merge local data into each Shopify order using order.number as the key.
+    // Ensure that the front-end sends the order's number as the identifier.
     orders.forEach(order => {
       if (localMap[order.number]) {
         const local = localMap[order.number];
@@ -207,7 +205,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
       }
     });
 
-    // Existing filtering logic for non-admin users
+    // 4. Existing filtering logic for non-admin users remains unchanged
     if (req.session.role !== 'admin') {
       const allowedLanguages = req.session.languages?.map(lang => lang.toLowerCase()) || [];
       let filteredOrders = [];
