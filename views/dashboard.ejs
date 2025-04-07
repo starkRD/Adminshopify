@@ -29,6 +29,51 @@
       Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
     </div>
 
+    <!-- Summary Section -->
+    <%
+      // Filter for unfulfilled orders
+      const unfulfilledOrders = orders.filter(order => order.fulfillment_status !== 'fulfilled');
+
+      // Build a language-wise count of unfulfilled orders
+      const languageCounts = {};
+      unfulfilledOrders.forEach(order => {
+        // Default language if none is found
+        let foundLanguage = 'Unknown';
+
+        // Check each line item for a property that includes 'language'
+        order.line_items.forEach(item => {
+          if (item.properties) {
+            item.properties.forEach(prop => {
+              if (prop.name && prop.name.toLowerCase().includes('language')) {
+                foundLanguage = prop.value || 'Unknown';
+              }
+            });
+          }
+        });
+
+        // Increment the count for this language
+        if (!languageCounts[foundLanguage]) {
+          languageCounts[foundLanguage] = 0;
+        }
+        languageCounts[foundLanguage]++;
+      });
+    %>
+
+    <!-- Display the totals -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <h4>Total Unfulfilled Orders: <%= unfulfilledOrders.length %></h4>
+      </div>
+      <div class="col-md-6">
+        <h4>Language-wise Unfulfilled Orders:</h4>
+        <ul>
+          <% for (let lang in languageCounts) { %>
+            <li><strong><%= lang %></strong>: <%= languageCounts[lang] %></li>
+          <% } %>
+        </ul>
+      </div>
+    </div>
+
     <div class="table-responsive">
       <table class="table table-bordered table-striped align-middle">
         <!-- Define fixed column widths here -->
@@ -67,12 +112,12 @@
               order.line_items.forEach(function(item) {
                 var variantId = String(item.variant_id);
                 timelines.forEach(function(timeline) {
-                  if(timeline.ids.indexOf(variantId) !== -1) {
+                  if (timeline.ids.indexOf(variantId) !== -1) {
                     matchedHours.push(timeline.hours);
                   }
                 });
               });
-              if(matchedHours.length > 0) {
+              if (matchedHours.length > 0) {
                 return Math.min.apply(null, matchedHours);
               }
               return 240; // default: Basic plan (10 days)
