@@ -123,6 +123,7 @@ async function fetchAllOrders(shop, accessToken) {
     // Check for the Link header to see if there is a next page
     const linkHeader = response.headers.link;
     if (linkHeader) {
+      // Parse the Link header to find the next page URL
       url = parseNextLink(linkHeader);
     } else {
       url = null;
@@ -132,12 +133,13 @@ async function fetchAllOrders(shop, accessToken) {
 }
 
 function parseNextLink(linkHeader) {
-  // Example Link header:
+  // Link header example:
   // <https://your-store.myshopify.com/admin/api/2023-04/orders.json?page_info=xyz&limit=250>; rel="next"
   const links = linkHeader.split(',');
   for (let link of links) {
     const [urlPart, relPart] = link.split(';');
     if (relPart && relPart.includes('rel="next"')) {
+      // Remove < and > from the URL part and trim spaces
       return urlPart.trim().slice(1, -1);
     }
   }
@@ -170,8 +172,14 @@ app.get('/dashboard', requireLogin, async (req, res) => {
                 if (propName.includes('form data')) {
                   const lines = prop.value.split('\n');
                   lines.forEach(line => {
-                    if (line.toLowerCase().startsWith('language:')) {
-                      orderLanguage = line.split(':')[1].trim().toLowerCase();
+                    const lowerLine = line.toLowerCase();
+                    console.log(`Order ${order.name}: Line: "${line}"`);
+                    if (lowerLine.includes('language')) {
+                      let afterLanguage = lowerLine.replace('language', '').replace(/[:=]/g, '').trim();
+                      if (afterLanguage) {
+                        orderLanguage = afterLanguage;
+                        console.log(`Detected language for order ${order.name}: ${orderLanguage}`);
+                      }
                     }
                   });
                 } else {
@@ -181,7 +189,6 @@ app.get('/dashboard', requireLogin, async (req, res) => {
             });
           }
         });
-        console.log(`Order ${order.name}: Detected language: ${orderLanguage}`);
         return orderLanguage && allowedLanguages.includes(orderLanguage);
       });
     }
