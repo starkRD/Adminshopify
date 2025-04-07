@@ -1,203 +1,227 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Order Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
       background-color: #f7f9fc;
     }
-    /* Use a fixed layout so columns share available width */
-    .table {
-      table-layout: fixed;
+    .order-card {
+      margin-bottom: 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .order-card .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+    .order-card .card-body h6 {
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+      color: #555;
+    }
+    .feedback-input {
       width: 100%;
     }
-    /* Prevent header text from wrapping */
-    .table thead th {
-      white-space: nowrap;
-    }
-    /* Wrap cell content if too long */
-    .table td {
+    /* Ensure line breaks for large text in properties */
+    .line-item, .property-text {
       white-space: pre-wrap;
       word-break: break-word;
+      font-size: 0.9rem;
     }
-    /* Reduce padding and font size on smaller screens */
-    @media (max-width: 768px) {
-      .table th, .table td {
-        padding: 0.5rem;
-        font-size: 0.85rem;
-      }
-    }
-    /* Optional: force some columns to have a min-width */
-    .col-order { min-width: 90px; }
-    .col-customer { min-width: 130px; }
-    .col-details { min-width: 150px; }
-    .col-delivery { min-width: 110px; }
-    .col-feedback { min-width: 120px; }
-    .col-comments { min-width: 110px; }
   </style>
 </head>
-<body class="bg-light">
-  <div class="container my-4">
-    <h1 class="mb-4 text-center">Order Dashboard</h1>
-    <div class="mb-3 text-center">
-      Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
+<body>
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>Order Dashboard</h2>
+      <div>
+        Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
+      </div>
     </div>
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped align-middle table-sm">
-        <thead class="table-dark">
-          <tr>
-            <th class="col-order">Order #</th>
-            <th class="col-customer">Customer Info</th>
-            <th class="col-details">Order Details</th>
-            <th class="col-delivery">Expected Delivery</th>
-            <th class="col-feedback">Feedback/Changes</th>
-            <th class="col-comments">Comments</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% 
-            // Helper functions for expected delivery calculation
-            function getDeliveryHours(order) {
-              var timelines = [
-                { name: "Basic", ids: ["41290369269835"], hours: 240 },
-                { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
-                { name: "Premium", ids: ["41290369335371"], hours: 30 },
-                { name: "Beast", ids: ["41290369368139"], hours: 30 },
-                { name: "FAST", ids: ["41274164543563"], hours: 48 },
-                { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
-              ];
-              var matchedHours = [];
-              order.line_items.forEach(function(item) {
-                var variantId = String(item.variant_id);
-                timelines.forEach(function(timeline) {
-                  if(timeline.ids.indexOf(variantId) !== -1) {
-                    matchedHours.push(timeline.hours);
-                  }
-                });
+
+    <% if (orders.length === 0) { %>
+      <div class="alert alert-warning text-center">
+        No orders to display.
+      </div>
+    <% } else { %>
+      <div class="row">
+        <% 
+          // Helper functions for expected delivery calculation
+          function getDeliveryHours(order) {
+            var timelines = [
+              { name: "Basic", ids: ["41290369269835"], hours: 240 },
+              { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
+              { name: "Premium", ids: ["41290369335371"], hours: 30 },
+              { name: "Beast", ids: ["41290369368139"], hours: 30 },
+              { name: "FAST", ids: ["41274164543563"], hours: 48 },
+              { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
+            ];
+            var matchedHours = [];
+            order.line_items.forEach(function(item) {
+              var variantId = String(item.variant_id);
+              timelines.forEach(function(timeline) {
+                if(timeline.ids.indexOf(variantId) !== -1) {
+                  matchedHours.push(timeline.hours);
+                }
               });
-              if(matchedHours.length > 0) {
-                return Math.min.apply(null, matchedHours);
-              }
-              return 240; // default: Basic plan (10 days)
+            });
+            if(matchedHours.length > 0) {
+              return Math.min.apply(null, matchedHours);
             }
-            function getExpectedDelivery(order) {
-              var createdAt = new Date(order.created_at);
-              var hours = getDeliveryHours(order);
-              var deliveryTimestamp = createdAt.getTime() + hours * 60 * 60 * 1000;
-              return new Date(deliveryTimestamp).toLocaleDateString("en-IN", {
-                timeZone: "Asia/Kolkata",
-                year: "numeric",
-                month: "short",
-                day: "numeric"
-              });
-            }
-          %>
-          <% orders.forEach(function(order) { %>
-            <tr>
-              <!-- Order Number -->
-              <td class="col-order"><strong><%= order.name %></strong></td>
-              
-              <!-- Customer Info -->
-              <td class="col-customer">
-                <% if (order.customer) { %>
-                  <%= order.customer.first_name %> <%= order.customer.last_name %><br>
-                  <small><%= order.customer.phone %></small>
+            return 240; // default: Basic plan (10 days)
+          }
+          
+          function getExpectedDelivery(order) {
+            var createdAt = new Date(order.created_at);
+            var hours = getDeliveryHours(order);
+            var deliveryTimestamp = createdAt.getTime() + hours * 60 * 60 * 1000;
+            return new Date(deliveryTimestamp).toLocaleDateString("en-IN", {
+              timeZone: "Asia/Kolkata",
+              year: "numeric",
+              month: "short",
+              day: "numeric"
+            });
+          }
+        %>
+
+        <% orders.forEach(function(order) { %>
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="card order-card">
+              <!-- CARD HEADER -->
+              <div class="card-header bg-primary text-white">
+                <span>Order #<%= order.name %></span>
+                <% if (order.fulfillment_status === 'fulfilled') { %>
+                  <span class="badge bg-success">Fulfilled</span>
                 <% } else { %>
-                  Guest
+                  <span class="badge bg-warning text-dark">Unfulfilled</span>
                 <% } %>
-              </td>
+              </div>
               
-              <!-- Order Details -->
-              <td class="col-details">
-                <% order.line_items.forEach(function(item) { %>
-                  <div>
-                    <strong><%= item.title %></strong> &times; <%= item.quantity %><br>
-                    <% if (item.properties && item.properties.length > 0) { %>
-                      <% item.properties.forEach(function(prop) { 
-                          var propName = prop.name.toLowerCase();
-                          var displayValue = prop.value;
-                          var shouldHide = false;
-                          // For properties from "Form Data", filter confidential info for viewers
-                          if (propName.includes('form data')) {
-                            if (role === 'viewer') {
-                              var lines = displayValue.split('\n');
-                              lines = lines.filter(function(line) {
-                                var lowerLine = line.toLowerCase();
+              <!-- CARD BODY -->
+              <div class="card-body">
+                
+                <!-- Customer Info -->
+                <h6>Customer Info</h6>
+                <p class="mb-2">
+                  <% if (order.customer) { %>
+                    <%= order.customer.first_name %> <%= order.customer.last_name %><br>
+                    <small><%= order.customer.phone || '' %></small>
+                  <% } else { %>
+                    Guest
+                  <% } %>
+                </p>
+                
+                <!-- Order Details -->
+                <h6>Order Details</h6>
+                <div>
+                  <% order.line_items.forEach(function(item) { %>
+                    <div class="line-item mb-2">
+                      <strong><%= item.title %></strong> × <%= item.quantity %><br>
+                      <!-- Show properties if any -->
+                      <% if (item.properties && item.properties.length > 0) { %>
+                        <% item.properties.forEach(function(prop) {
+                            var propName = prop.name.toLowerCase();
+                            var displayValue = prop.value;
+                            var shouldHide = false;
+
+                            // If "Form Data", hide confidential lines for viewers
+                            if (propName.includes('form data')) {
+                              if (role === 'viewer') {
+                                var lines = displayValue.split('\n');
+                                lines = lines.filter(function(line) {
+                                  var lowerLine = line.toLowerCase();
+                                  if (
+                                    lowerLine.includes('whatsapp') ||
+                                    lowerLine.includes('price') ||
+                                    lowerLine.includes('song type') ||
+                                    lowerLine.includes('uploaded images') ||
+                                    lowerLine.includes('selected addons')
+                                  ) {
+                                    return false;
+                                  }
+                                  return true;
+                                });
+                                displayValue = lines.join('\n');
+                              }
+                            } else {
+                              // Hide certain property names for viewers
+                              if (role === 'viewer') {
                                 if (
-                                  lowerLine.includes('whatsapp') ||
-                                  lowerLine.includes('price') ||
-                                  lowerLine.includes('song type') ||
-                                  lowerLine.includes('uploaded images') ||
-                                  lowerLine.includes('selected addons')
+                                  propName.includes('whatsapp') ||
+                                  propName.includes('price') ||
+                                  propName.includes('song type') ||
+                                  propName.includes('uploaded images') ||
+                                  propName.includes('selected addons')
                                 ) {
-                                  return false;
+                                  shouldHide = true;
                                 }
-                                return true;
-                              });
-                              displayValue = lines.join('\n');
-                            }
-                          } else {
-                            if (role === 'viewer') {
-                              if (
-                                propName.includes('whatsapp') ||
-                                propName.includes('price') ||
-                                propName.includes('song type') ||
-                                propName.includes('uploaded images') ||
-                                propName.includes('selected addons')
-                              ) {
-                                shouldHide = true;
                               }
                             }
-                          }
-                      %>
-                        <% if (!shouldHide) { %>
-                          <small><%= prop.name %>: <%= displayValue %></small><br>
-                        <% } %>
-                      <% }); %>
-                    <% } %>
-                  </div>
-                  <hr class="my-1">
-                <% }); %>
-              </td>
-              
-              <!-- Expected Delivery -->
-              <td class="col-delivery">
-                <%= getExpectedDelivery(order) %>
-              </td>
-              
-              <!-- Feedback/Changes -->
-              <td class="col-feedback">
+                        %>
+                          <% if (!shouldHide) { %>
+                            <div class="property-text">
+                              <small><%= prop.name %>: <%= displayValue %></small>
+                            </div>
+                          <% } %>
+                        <% }); %>
+                      <% } %>
+                    </div>
+                  <% }); %>
+                </div>
+
+                <!-- Expected Delivery -->
+                <h6>Expected Delivery</h6>
+                <p class="mb-2">
+                  <%= getExpectedDelivery(order) %>
+                </p>
+
+                <!-- Feedback/Changes -->
+                <h6>Feedback / Changes</h6>
                 <% if (role === 'admin') { %>
-                  <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field form-control">
+                  <input 
+                    type="text" 
+                    value="<%= order.note || '' %>" 
+                    data-order-id="<%= order.id %>"
+                    class="feedback-input form-control mb-2"
+                  >
                 <% } else { %>
-                  <input type="text" value="<%= order.note || '' %>" class="form-control" readonly>
+                  <p class="mb-2">
+                    <%= order.note && order.note.length ? order.note : 'No feedback provided.' %>
+                  </p>
                 <% } %>
-              </td>
+                
+              </div> <!-- end card-body -->
               
-              <!-- Comments -->
-              <td class="col-comments">
-                <%= order.comment || 'N/A' %>
-              </td>
-            </tr>
-          <% }); %>
-        </tbody>
-      </table>
-    </div>
+              <!-- CARD FOOTER -->
+              <div class="card-footer text-muted">
+                <small>Created: <%= new Date(order.created_at).toLocaleString() %></small>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
   </div>
-  
+
   <script>
-    // For admin users, enable real-time feedback updates on blur.
+    // For admin users, enable real-time feedback updates on blur
     if ("<%= role %>" === "admin") {
-      document.querySelectorAll('.feedback-field').forEach(function(field) {
+      document.querySelectorAll('.feedback-input').forEach(field => {
         field.addEventListener('blur', function() {
-          var orderId = this.getAttribute('data-order-id');
-          var feedback = this.value;
+          const orderId = this.getAttribute('data-order-id');
+          const feedback = this.value;
           fetch('/update-feedback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: orderId, feedback: feedback })
+            body: JSON.stringify({ orderId, feedback })
           })
           .then(response => response.json())
           .then(data => console.log("Feedback saved:", data))
