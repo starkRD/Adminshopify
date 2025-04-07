@@ -1,10 +1,11 @@
-import { Pool } from 'pg';
+// api/update-order.js
+const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.NEON_DATABASE_URL,
 });
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -42,4 +43,4 @@ export default async function handler(req, res) {
     console.error('Error updating order:', error);
     return res.status(500).json({ error: 'Failed to update order' });
   }
-}
+};
