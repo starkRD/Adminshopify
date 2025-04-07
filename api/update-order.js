@@ -9,7 +9,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-
+  
   const { orderId, updates } = req.body;
   if (!orderId || !updates) {
     return res.status(400).json({ error: 'Missing orderId or updates' });
@@ -29,10 +29,12 @@ module.exports = async function handler(req, res) {
       editing || false,
       delivered || false,
     ];
+
     const result = await pool.query(query, values);
+    console.log("Update-order inserted row:", result.rows[0]);
     return res.status(200).json({ message: 'Order updated (history row inserted)', data: result.rows[0] });
   } catch (error) {
-    console.error('Error updating order history:', error);
+    console.error("Error updating order history:", error);
     return res.status(500).json({ error: 'Failed to update order' });
   }
 };
