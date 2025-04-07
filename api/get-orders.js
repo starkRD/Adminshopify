@@ -1,10 +1,11 @@
-import { Pool } from 'pg';
+// api/get-orders.js
+const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.NEON_DATABASE_URL,
 });
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -25,4 +26,4 @@ export default async function handler(req, res) {
     console.error('Error retrieving orders:', error);
     return res.status(500).json({ error: 'Failed to retrieve orders' });
   }
-}
+};
