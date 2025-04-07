@@ -38,7 +38,7 @@
           <col style="width:55%;">
           <col style="width:6%;">
           <col style="width:22%;">
-          <col style="width:5%;"> <!-- New column for Done checkbox -->
+          <col style="width:5%;"> <!-- Column for Done checkbox -->
         </colgroup>
 
         <thead class="table-dark">
@@ -48,7 +48,7 @@
             <th>Order Details</th>
             <th>Expected Delivery</th>
             <th>Feedback/Changes</th>
-            <th>Done</th> <!-- New column header -->
+            <th>Done</th>
           </tr>
         </thead>
         <tbody>
@@ -106,58 +106,61 @@
                 <% } %>
               </td>
 
-              <!-- Order Details -->
+              <!-- Order Details with Copy Button -->
               <td>
-                <% order.line_items.forEach(function(item) { %>
-                  <div>
-                    <strong><%= item.title %></strong> &times; <%= item.quantity %><br>
-                    <% if (item.properties && item.properties.length > 0) { %>
-                      <% item.properties.forEach(function(prop) { 
-                          var propName = prop.name.toLowerCase();
-                          var displayValue = prop.value;
-                          var shouldHide = false;
+                <div class="order-details-container" id="order-details-<%= order.id %>">
+                  <% order.line_items.forEach(function(item) { %>
+                    <div>
+                      <strong><%= item.title %></strong> &times; <%= item.quantity %><br>
+                      <% if (item.properties && item.properties.length > 0) { %>
+                        <% item.properties.forEach(function(prop) { 
+                            var propName = prop.name.toLowerCase();
+                            var displayValue = prop.value;
+                            var shouldHide = false;
 
-                          // For properties from "Form Data", filter confidential info for viewers
-                          if (propName.includes('form data')) {
-                            if (role === 'viewer') {
-                              var lines = displayValue.split('\n');
-                              lines = lines.filter(function(line) {
-                                var lowerLine = line.toLowerCase();
+                            // For properties from "Form Data", filter confidential info for viewers
+                            if (propName.includes('form data')) {
+                              if (role === 'viewer') {
+                                var lines = displayValue.split('\n');
+                                lines = lines.filter(function(line) {
+                                  var lowerLine = line.toLowerCase();
+                                  if (
+                                    lowerLine.includes('whatsapp') ||
+                                    lowerLine.includes('price') ||
+                                    lowerLine.includes('song type') ||
+                                    lowerLine.includes('uploaded images') ||
+                                    lowerLine.includes('selected addons')
+                                  ) {
+                                    return false;
+                                  }
+                                  return true;
+                                });
+                                displayValue = lines.join('\n');
+                              }
+                            } else {
+                              if (role === 'viewer') {
                                 if (
-                                  lowerLine.includes('whatsapp') ||
-                                  lowerLine.includes('price') ||
-                                  lowerLine.includes('song type') ||
-                                  lowerLine.includes('uploaded images') ||
-                                  lowerLine.includes('selected addons')
+                                  propName.includes('whatsapp') ||
+                                  propName.includes('price') ||
+                                  propName.includes('song type') ||
+                                  propName.includes('uploaded images') ||
+                                  propName.includes('selected addons')
                                 ) {
-                                  return false;
+                                  shouldHide = true;
                                 }
-                                return true;
-                              });
-                              displayValue = lines.join('\n');
-                            }
-                          } else {
-                            if (role === 'viewer') {
-                              if (
-                                propName.includes('whatsapp') ||
-                                propName.includes('price') ||
-                                propName.includes('song type') ||
-                                propName.includes('uploaded images') ||
-                                propName.includes('selected addons')
-                              ) {
-                                shouldHide = true;
                               }
                             }
-                          }
-                      %>
-                        <% if (!shouldHide) { %>
-                          <small><%= prop.name %>: <%= displayValue %></small><br>
-                        <% } %>
-                      <% }); %>
-                    <% } %>
-                  </div>
-                  <hr class="my-1">
-                <% }); %>
+                        %>
+                          <% if (!shouldHide) { %>
+                            <small><%= prop.name %>: <%= displayValue %></small><br>
+                          <% } %>
+                        <% }); %>
+                      <% } %>
+                    </div>
+                    <hr class="my-1">
+                  <% }); %>
+                </div>
+                <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.id %>">Copy</button>
               </td>
 
               <!-- Expected Delivery -->
@@ -203,6 +206,22 @@
         });
       });
     }
+
+    // Add event listeners for all copy buttons
+    document.querySelectorAll('.copy-btn').forEach(function(button) {
+      button.addEventListener('click', function() {
+        var orderId = this.getAttribute('data-order-id');
+        var detailsElement = document.getElementById('order-details-' + orderId);
+        if (detailsElement) {
+          var textToCopy = detailsElement.innerText;
+          navigator.clipboard.writeText(textToCopy).then(function() {
+            alert('Order details copied to clipboard!');
+          }).catch(function(err) {
+            alert('Failed to copy text: ' + err);
+          });
+        }
+      });
+    });
   </script>
 </body>
 </html>
