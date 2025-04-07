@@ -151,11 +151,12 @@ function parseNextLink(linkHeader) {
 // ---------------------------
 async function fetchLocalOrders() {
   try {
-    // Create a new pool for local Neon queries (or reuse one if you prefer)
+    // Create a new pool for local Neon queries (or reuse one if preferred)
     const localPool = new Pool({
       connectionString: process.env.NEON_DATABASE_URL,
     });
     const result = await localPool.query('SELECT * FROM orders');
+    console.log("Local orders from Neon:", result.rows);
     const localMap = {};
     for (const row of result.rows) {
       localMap[row.order_id] = {
@@ -186,11 +187,10 @@ app.get('/dashboard', requireLogin, async (req, res) => {
     // Fetch local updates from Neon
     let localMap = await fetchLocalOrders();
 
-    // Merge local data into each Shopify order
-    // Here we assume that the unique identifier used is order.name.
+    // Merge local data into each Shopify order using order.id as the key
     orders.forEach(order => {
-      if (localMap[order.name]) {
-        const local = localMap[order.name];
+      if (localMap[order.id]) {
+        const local = localMap[order.id];
         order.note = local.note;
         order.done = local.done;
         order.editing = local.editing;
