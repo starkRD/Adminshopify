@@ -28,7 +28,70 @@
     <div class="mb-3 text-center">
       Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
     </div>
-
+<!-- Statistics section - add this right after the login info div -->
+<div class="container-fluid mb-4">
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Total Unfulfilled Orders</h5>
+          <% 
+            var unfulfilled = 0;
+            orders.forEach(function(order) {
+              // Check if order is unfulfilled (based on checkbox being unchecked)
+              // This assumes you're using the checkbox to track fulfillment
+              unfulfilled++;
+            });
+          %>
+          <h2 class="text-primary"><%= unfulfilled %></h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Language Breakdown</h5>
+          <% 
+            var languageCounts = {};
+            
+            orders.forEach(function(order) {
+              // Try to find language in order properties
+              var language = "Unknown";
+              
+              if (order.line_items) {
+                order.line_items.forEach(function(item) {
+                  if (item.properties) {
+                    item.properties.forEach(function(prop) {
+                      if (prop.name.toLowerCase().includes('language')) {
+                        language = prop.value || "Unknown";
+                      }
+                    });
+                  }
+                });
+              }
+              
+              // Count by language
+              if (!languageCounts[language]) {
+                languageCounts[language] = 0;
+              }
+              languageCounts[language]++;
+            });
+          %>
+          
+          <div class="row">
+            <% for (var lang in languageCounts) { %>
+              <div class="col-auto mb-2">
+                <span class="badge bg-light text-dark border">
+                  <%= lang %>: <%= languageCounts[lang] %>
+                </span>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     <div class="table-responsive">
       <table class="table table-bordered table-striped align-middle">
         <!-- Define fixed column widths here -->
