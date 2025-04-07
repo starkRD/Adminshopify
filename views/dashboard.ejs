@@ -22,13 +22,13 @@
   </style>
 </head>
 <body class="bg-light">
-  <!-- Container for full width -->
+  <!-- Changed container to container-fluid for full width -->
   <div class="container-fluid my-4">
     <h1 class="mb-4 text-center">Order Dashboard</h1>
     <div class="mb-3 text-center">
       Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
     </div>
-    <!-- Statistics section -->
+    <!-- Statistics section - add this right after the login info div -->
     <div class="container-fluid mb-4">
       <div class="row">
         <div class="col-md-6">
@@ -38,8 +38,7 @@
               <% 
                 var unfulfilled = 0;
                 orders.forEach(function(order) {
-                  // Adjust this logic if needed.
-                  if (!order.done) {
+                  if (!order.delivered) {
                     unfulfilled++;
                   }
                 });
@@ -90,7 +89,7 @@
     
     <div class="table-responsive">
       <table class="table table-bordered table-striped align-middle">
-        <!-- Define fixed column widths -->
+        <!-- Define fixed column widths here -->
         <colgroup>
           <col style="width:7%;">
           <col style="width:10%;">
@@ -180,6 +179,7 @@
                             var propName = prop.name.toLowerCase();
                             var displayValue = prop.value;
                             var shouldHide = false;
+
                             // For properties from "Form Data", filter confidential info for viewers
                             if (propName.includes('form data')) {
                               if (role === 'viewer') {
@@ -232,11 +232,7 @@
 
               <!-- Feedback/Changes -->
               <td>
-                <% if (role === 'admin') { %>
-                  <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field form-control">
-                <% } else { %>
-                  <%= order.note || 'N/A' %>
-                <% } %>
+                <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field form-control" <%= role !== 'admin' ? 'readonly' : '' %>>
               </td>
 
               <!-- Done Checkbox -->
@@ -261,29 +257,39 @@
   </div>
 
   <script>
-    // For admin users, update feedback on blur.
+    // Add event listeners for feedback fields
     document.querySelectorAll('.feedback-field').forEach(function(field) {
+      field.addEventListener('input', function() {
+        // Store the current value when input changes
+        field.setAttribute('data-current-value', field.value);
+      });
+      
       field.addEventListener('blur', function() {
         var orderId = this.getAttribute('data-order-id');
         var feedback = this.value;
-        fetch('/update-feedback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: orderId, feedback: feedback })
-        })
-        .then(response => response.json())
-        .then(data => console.log("Feedback saved:", data))
-        .catch(err => console.error("Error saving feedback:", err));
+        
+        // Check if value has changed
+        if (field.getAttribute('data-current-value') !== field.getAttribute('value')) {
+          updateOrderData(orderId, { feedback: feedback });
+        }
       });
     });
 
-    // Silent copy functionality.
+    // Add event listeners for all copy buttons (silent copy)
     document.querySelectorAll('.copy-btn').forEach(function(button) {
       button.addEventListener('click', function() {
         var orderId = this.getAttribute('data-order-id');
         var detailsElement = document.getElementById('order-details-' + orderId);
         if (detailsElement) {
-          navigator.clipboard.writeText(detailsElement.innerText)
+          var textToCopy = detailsElement.innerText;
+          navigator.clipboard.writeText(textToCopy)
+            .then(function() {
+              // Visual feedback for copy
+              button.innerText = "Copied!";
+              setTimeout(function() {
+                button.innerText = "Copy";
+              }, 1500);
+            })
             .catch(function(err) {
               console.error('Failed to copy text:', err);
             });
@@ -291,29 +297,94 @@
       });
     });
 
-    // Update order status when any status checkbox changes.
+    // Add event listeners for status checkboxes (Done, Editing, Delivered)
     document.querySelectorAll('.status-checkbox').forEach(function(checkbox) {
       checkbox.addEventListener('change', function() {
         var orderId = this.getAttribute('data-order-id');
-        var done = document.querySelector('input[name="done"][data-order-id="'+orderId+'"]').checked;
-        var editing = document.querySelector('input[name="editing"][data-order-id="'+orderId+'"]').checked;
-        var delivered = document.querySelector('input[name="delivered"][data-order-id="'+orderId+'"]').checked;
+        var checkboxName = this.name;
+        var isChecked = this.checked;
         
-        fetch('/update-order-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId: orderId,
-            done: done,
-            editing: editing,
-            delivered: delivered
-          })
-        })
-        .then(response => response.json())
-        .then(data => console.log("Order status updated:", data))
-        .catch(err => console.error("Error updating order status:", err));
+        // Create an object with the specific checkbox that was changed
+        var updateData = {};
+        updateData[checkboxName] = isChecked;
+        
+        // If we check "delivered", also set the feedback from the current input value
+        if (checkboxName === 'delivered' && isChecked) {
+          var feedbackField = document.querySelector('.feedback-field[data-order-id="'+orderId+'"]');
+          if (feedbackField) {
+            updateData.feedback = feedbackField.value;
+          }
+        }
+        
+        updateOrderData(orderId, updateData);
       });
     });
+    
+    // Function to update order data
+    function updateOrderData(orderId, updateData) {
+      // Show loading indicator or disable relevant elements
+      var relatedElements = document.querySelectorAll('[data-order-id="'+orderId+'"]');
+      relatedElements.forEach(function(el) {
+        el.classList.add('disabled');
+      });
+      
+      fetch('/update-order', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>' // Assuming you're using CSRF protection
+        },
+        body: JSON.stringify({
+          orderId: orderId,
+          updates: updateData
+        })
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Order updated:", data);
+        
+        // Update UI to reflect the changes
+        if (updateData.feedback !== undefined) {
+          var feedbackField = document.querySelector('.feedback-field[data-order-id="'+orderId+'"]');
+          if (feedbackField) {
+            feedbackField.value = updateData.feedback;
+            feedbackField.setAttribute('value', updateData.feedback);
+            feedbackField.setAttribute('data-current-value', updateData.feedback);
+          }
+        }
+        
+        // If all checkboxes were provided in the update, update them all
+        ['done', 'editing', 'delivered'].forEach(function(status) {
+          if (updateData[status] !== undefined) {
+            var checkbox = document.querySelector('input[name="'+status+'"][data-order-id="'+orderId+'"]');
+            if (checkbox) {
+              checkbox.checked = updateData[status];
+            }
+          }
+        });
+        
+        // Remove loading state
+        relatedElements.forEach(function(el) {
+          el.classList.remove('disabled');
+        });
+      })
+      .catch(err => {
+        console.error("Error updating order:", err);
+        
+        // Remove loading state and show error
+        relatedElements.forEach(function(el) {
+          el.classList.remove('disabled');
+        });
+        
+        // Optionally revert changes or show error notification
+        alert("Failed to update order. Please try again.");
+      });
+    }
   </script>
 </body>
 </html>
