@@ -2,11 +2,6 @@ const express = require('express');
 const axios = require('axios');
 const cookieSession = require('cookie-session');
 const path = require('path');
-const { Pool } = require('pg'); // For local Neon queries
-
-// Import the Neon API handlers
-const updateOrderHandler = require('./api/update-order.js');
-const getOrdersHandler = require('./api/get-orders.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,7 +9,6 @@ const PORT = process.env.PORT || 3000;
 // Environment Variables
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const SHOPIFY_SHOP_DOMAIN = process.env.SHOPIFY_SHOP_DOMAIN || 'your-store.myshopify.com';
-const FORWARDING_ADDRESS = process.env.FORWARDING_ADDRESS;
 
 const DASHBOARD_ADMIN_PASSWORD = process.env.DASHBOARD_ADMIN_PASSWORD;
 const DASHBOARD_SHANU_PASSWORD = process.env.DASHBOARD_SHANU_PASSWORD;
@@ -31,16 +25,14 @@ app.use(express.json());
 app.use(cookieSession({
   name: 'session',
   keys: [process.env.COOKIE_SECRET || 'default-secret'],
-  maxAge: 24 * 60 * 60 * 1000, // 1 day
+  maxAge: 24 * 60 * 60 * 1000 // 1 day
 }));
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 
-// ---------------------------
-// LOGIN ROUTES
-// ---------------------------
+// Login routes
 app.get('/login', (req, res) => {
   res.render('login', { error: null });
 });
@@ -93,22 +85,20 @@ app.post('/login', (req, res) => {
   }
 });
 
-// ---------------------------
-// MIDDLEWARE
-// ---------------------------
+// Middleware
 function requireLogin(req, res, next) {
   if (req.session.loggedIn) return next();
   res.redirect('/login');
 }
 
+// No local DB references, so no requireAdmin for updates needed
+// If you still want to protect admin routes, keep requireAdmin
 function requireAdmin(req, res, next) {
   if (req.session.role === 'admin') return next();
   res.status(403).send('Access denied: Admins only.');
 }
 
-// ---------------------------
-// HELPER: FETCH ALL ORDERS FROM SHOPIFY
-// ---------------------------
+// Helper: Fetch all orders from Shopify
 async function fetchAllOrders(shop, accessToken) {
   let orders = [];
   let url = `https://${shop}/admin/api/2023-04/orders.json?limit=250`;
@@ -146,68 +136,15 @@ function parseNextLink(linkHeader) {
   return null;
 }
 
-// ---------------------------
-// HELPER: FETCH LATEST LOCAL ORDERS FROM NEON
-// (Uses order_history table to find the latest row per order_id)
-// ---------------------------
-async function fetchLocalOrders() {
-  try {
-    const localPool = new Pool({
-      connectionString: process.env.NEON_DATABASE_URL,
-    });
-    const query = `
-      SELECT DISTINCT ON (order_id) 
-        order_id, note, done, editing, delivered, updated_at
-      FROM order_history
-      ORDER BY order_id, updated_at DESC
-    `;
-    const result = await localPool.query(query);
-    console.log("Latest local updates from Neon:", result.rows);
-
-    const localMap = {};
-    for (const row of result.rows) {
-      localMap[row.order_id] = {
-        note: row.note,
-        done: row.done,
-        editing: row.editing,
-        delivered: row.delivered
-      };
-    }
-    return localMap;
-  } catch (error) {
-    console.error("Error fetching local orders from Neon:", error);
-    return {};
-  }
-}
-
-// ---------------------------
-// DASHBOARD ROUTE (MERGES LATEST LOCAL UPDATES USING order.number)
-// ---------------------------
+// Dashboard route - no merges, just Shopify data
 app.get('/dashboard', requireLogin, async (req, res) => {
   const shop = SHOPIFY_SHOP_DOMAIN;
   const accessToken = SHOPIFY_ACCESS_TOKEN;
 
   try {
-    console.log("Fetching Shopify orders...");
     let orders = await fetchAllOrders(shop, accessToken);
-    console.log("Fetched Shopify orders count:", orders.length);
 
-    console.log("Fetching local updates...");
-    let localMap = await fetchLocalOrders();
-
-    console.log("Merging local updates with Shopify orders...");
-    orders.forEach(order => {
-      // Use order.number as the key
-      if (localMap[order.number]) {
-        const local = localMap[order.number];
-        order.note = local.note;
-        order.done = local.done;
-        order.editing = local.editing;
-        order.delivered = local.delivered;
-      }
-    });
-
-    // Existing filtering logic for non-admin users
+    // If not admin, apply language-based filtering
     if (req.session.role !== 'admin') {
       const allowedLanguages = req.session.languages?.map(lang => lang.toLowerCase()) || [];
       let filteredOrders = [];
@@ -259,35 +196,14 @@ app.get('/dashboard', requireLogin, async (req, res) => {
       orders = filteredOrders.concat(noLanguageUnfulfilledOrders);
     }
 
-    console.log("Rendering dashboard with merged data...");
     res.render('dashboard', { orders, role: req.session.role });
   } catch (error) {
-    console.error('Error fetching orders:', error.response?.data || error.message);
+    console.error('Error fetching orders:', error.message);
     res.status(500).send('Error fetching orders');
   }
 });
 
-// ---------------------------
-// ADMIN-ONLY UPDATE ENDPOINT (EXISTING)
-// ---------------------------
-app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
-  res.json({ status: 'success' });
-});
-
-// ---------------------------
-// NEON DATABASE API ENDPOINTS
-// ---------------------------
-app.post('/api/update-order', requireLogin, requireAdmin, (req, res) => {
-  updateOrderHandler(req, res);
-});
-
-app.get('/api/get-orders', requireLogin, (req, res) => {
-  getOrdersHandler(req, res);
-});
-
-// ---------------------------
-// ROOT ROUTE
-// ---------------------------
+// Root route
 app.get('/', (req, res) => {
   if (req.session.loggedIn) {
     res.redirect('/dashboard');
