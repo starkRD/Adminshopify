@@ -18,17 +18,10 @@ module.exports = async function handler(req, res) {
   try {
     const { note, done, editing, delivered } = updates;
     const query = `
-      INSERT INTO orders (order_id, note, done, editing, delivered)
+      INSERT INTO order_history (order_id, note, done, editing, delivered)
       VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (order_id)
-      DO UPDATE SET
-        note = EXCLUDED.note,
-        done = EXCLUDED.done,
-        editing = EXCLUDED.editing,
-        delivered = EXCLUDED.delivered
       RETURNING *;
     `;
-
     const values = [
       orderId,
       note || '',
@@ -36,11 +29,10 @@ module.exports = async function handler(req, res) {
       editing || false,
       delivered || false,
     ];
-
     const result = await pool.query(query, values);
-    return res.status(200).json({ message: 'Order updated', data: result.rows[0] });
+    return res.status(200).json({ message: 'Order updated (history row inserted)', data: result.rows[0] });
   } catch (error) {
-    console.error('Error updating order:', error);
+    console.error('Error updating order history:', error);
     return res.status(500).json({ error: 'Failed to update order' });
   }
 };
