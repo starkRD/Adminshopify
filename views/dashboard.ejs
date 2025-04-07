@@ -207,18 +207,21 @@
       });
     }
 
-    // Add event listeners for all copy buttons
+    // Add event listeners for all copy buttons (silent copy)
     document.querySelectorAll('.copy-btn').forEach(function(button) {
       button.addEventListener('click', function() {
         var orderId = this.getAttribute('data-order-id');
         var detailsElement = document.getElementById('order-details-' + orderId);
         if (detailsElement) {
           var textToCopy = detailsElement.innerText;
-          navigator.clipboard.writeText(textToCopy).then(function() {
-            alert('Order details copied to clipboard!');
-          }).catch(function(err) {
-            alert('Failed to copy text: ' + err);
-          });
+          navigator.clipboard.writeText(textToCopy)
+            .then(function() {
+              // Copy succeeded, do nothing (silent)
+            })
+            .catch(function(err) {
+              // Copy failed, optionally log to console
+              console.error('Failed to copy text:', err);
+            });
         }
       });
     });
