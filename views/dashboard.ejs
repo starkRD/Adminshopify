@@ -114,6 +114,45 @@
           </tr>
         </thead>
         <tbody>
+          <% 
+            // Helper functions for expected delivery calculation
+            function getDeliveryHours(order) {
+              var timelines = [
+                { name: "Basic", ids: ["41290369269835"], hours: 240 },
+                { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
+                { name: "Premium", ids: ["41290369335371"], hours: 30 },
+                { name: "Beast", ids: ["41290369368139"], hours: 30 },
+                { name: "FAST", ids: ["41274164543563"], hours: 48 },
+                { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
+              ];
+              var matchedHours = [];
+              order.line_items.forEach(function(item) {
+                var variantId = String(item.variant_id);
+                timelines.forEach(function(timeline) {
+                  if(timeline.ids.indexOf(variantId) !== -1) {
+                    matchedHours.push(timeline.hours);
+                  }
+                });
+              });
+              if(matchedHours.length > 0) {
+                return Math.min.apply(null, matchedHours);
+              }
+              return 240; // default: Basic plan (10 days)
+            }
+
+            function getExpectedDelivery(order) {
+              var createdAt = new Date(order.created_at);
+              var hours = getDeliveryHours(order);
+              var deliveryTimestamp = createdAt.getTime() + hours * 60 * 60 * 1000;
+              return new Date(deliveryTimestamp).toLocaleDateString("en-IN", {
+                timeZone: "Asia/Kolkata",
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+              });
+            }
+          %>
+
           <% orders.forEach(function(order) { %>
             <tr>
               <!-- Order Number -->
@@ -131,7 +170,7 @@
 
               <!-- Order Details with Copy Button -->
               <td>
-                <div class="order-details-container" id="order-details-<%= order.name %>">
+                <div class="order-details-container" id="order-details-<%= order.id %>">
                   <% order.line_items.forEach(function(item) { %>
                     <div>
                       <strong><%= item.title %></strong> &times; <%= item.quantity %><br>
@@ -140,6 +179,8 @@
                             var propName = prop.name.toLowerCase();
                             var displayValue = prop.value;
                             var shouldHide = false;
+
+                            // For properties from "Form Data", filter confidential info for viewers
                             if (propName.includes('form data')) {
                               if (role === 'viewer') {
                                 var lines = displayValue.split('\n');
@@ -181,7 +222,7 @@
                     <hr class="my-1">
                   <% }); %>
                 </div>
-                <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.name %>">Copy</button>
+                <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.id %>">Copy</button>
               </td>
 
               <!-- Expected Delivery -->
@@ -191,22 +232,22 @@
 
               <!-- Feedback/Changes -->
               <td>
-                <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.name %>" class="feedback-field form-control" <%= role !== 'admin' ? 'readonly' : '' %>>
+                <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field form-control" <%= role !== 'admin' ? 'readonly' : '' %>>
               </td>
 
               <!-- Done Checkbox -->
               <td class="text-center">
-                <input type="checkbox" name="done" data-order-id="<%= order.name %>" class="status-checkbox done-checkbox" <%= order.done ? 'checked' : '' %>>
+                <input type="checkbox" name="done" data-order-id="<%= order.id %>" class="status-checkbox done-checkbox" <%= order.done ? 'checked' : '' %>>
               </td>
               
               <!-- Editing Checkbox -->
               <td class="text-center">
-                <input type="checkbox" name="editing" data-order-id="<%= order.name %>" class="status-checkbox editing-checkbox" <%= order.editing ? 'checked' : '' %>>
+                <input type="checkbox" name="editing" data-order-id="<%= order.id %>" class="status-checkbox editing-checkbox" <%= order.editing ? 'checked' : '' %>>
               </td>
               
               <!-- Delivered Checkbox -->
               <td class="text-center">
-                <input type="checkbox" name="delivered" data-order-id="<%= order.name %>" class="status-checkbox delivered-checkbox" <%= order.delivered ? 'checked' : '' %>>
+                <input type="checkbox" name="delivered" data-order-id="<%= order.id %>" class="status-checkbox delivered-checkbox" <%= order.delivered ? 'checked' : '' %>>
               </td>
             </tr>
           <% }); %>
@@ -221,6 +262,7 @@
       field.addEventListener('blur', function() {
         var orderId = this.getAttribute('data-order-id');
         var feedback = this.value;
+        
         updateOrderData(orderId, { note: feedback });
       });
     });
@@ -234,6 +276,7 @@
           var textToCopy = detailsElement.innerText;
           navigator.clipboard.writeText(textToCopy)
             .then(function() {
+              // Visual feedback for copy
               button.innerText = "Copied!";
               setTimeout(function() {
                 button.innerText = "Copy";
@@ -252,23 +295,30 @@
         var orderId = this.getAttribute('data-order-id');
         var checkboxName = this.name;
         var isChecked = this.checked;
+        
+        // Create an object with the specific checkbox that was changed
         var updateData = {};
         updateData[checkboxName] = isChecked;
+        
+        // If we check "delivered", also set the feedback from the current input value
         if (checkboxName === 'delivered' && isChecked) {
           var feedbackField = document.querySelector('.feedback-field[data-order-id="'+orderId+'"]');
           if (feedbackField) {
             updateData.note = feedbackField.value;
           }
         }
+        
         updateOrderData(orderId, updateData);
       });
     });
     
     // Function to update order data
     function updateOrderData(orderId, updateData) {
-      fetch('/api/update-order', {
+      fetch('/api/update-order', {  // Updated URL to include /api/
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           orderId: orderId,
           updates: updateData
