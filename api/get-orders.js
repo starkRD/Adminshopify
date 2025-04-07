@@ -11,19 +11,11 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const result = await pool.query('SELECT * FROM orders');
-    const ordersData = {};
-    for (const row of result.rows) {
-      ordersData[row.order_id] = {
-        note: row.note,
-        done: row.done,
-        editing: row.editing,
-        delivered: row.delivered,
-      };
-    }
-    return res.status(200).json({ orders: ordersData });
+    // Fetch all rows from the order_history table
+    const result = await pool.query('SELECT * FROM order_history');
+    return res.status(200).json({ history: result.rows });
   } catch (error) {
-    console.error('Error retrieving orders:', error);
-    return res.status(500).json({ error: 'Failed to retrieve orders' });
+    console.error("Error retrieving order history:", error);
+    return res.status(500).json({ error: 'Failed to retrieve order history' });
   }
 };
