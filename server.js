@@ -126,7 +126,6 @@ async function fetchAllOrders(shop, accessToken) {
       break;
     }
   }
-
   return orders;
 }
 
@@ -142,7 +141,23 @@ function parseNextLink(linkHeader) {
 }
 
 // ---------------------------
-// DASHBOARD ROUTE (UPDATED)
+// HELPER: FETCH ORDER EVENTS
+// ---------------------------
+async function fetchOrderEvents(orderId, shop, accessToken) {
+  const url = `https://${shop}/admin/api/2023-04/orders/${orderId}/events.json`;
+  try {
+    const response = await axios.get(url, {
+      headers: { 'X-Shopify-Access-Token': accessToken },
+    });
+    return response.data.events;
+  } catch (err) {
+    console.error(`Error fetching events for order ${orderId}:`, err.message);
+    return [];
+  }
+}
+
+// ---------------------------
+// DASHBOARD ROUTE (UPDATED WITH TIMELINE EVENTS)
 // ---------------------------
 app.get('/dashboard', requireLogin, async (req, res) => {
   const shop = SHOPIFY_SHOP_DOMAIN;
@@ -151,6 +166,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
   try {
     let orders = await fetchAllOrders(shop, accessToken);
 
+    // Filter orders based on role/language as before
     if (req.session.role !== 'admin') {
       const allowedLanguages = req.session.languages?.map(lang => lang.toLowerCase()) || [];
       let filteredOrders = [];
@@ -168,7 +184,6 @@ app.get('/dashboard', requireLogin, async (req, res) => {
                 foundLanguage = true;
                 break;
               }
-
               if (prop.name.toLowerCase().includes('form data')) {
                 const lines = prop.value.split('\n').map(line => line.trim());
                 for (const line of lines) {
@@ -179,7 +194,6 @@ app.get('/dashboard', requireLogin, async (req, res) => {
                   }
                 }
               }
-
               if (foundLanguage) break;
             }
           }
@@ -187,7 +201,6 @@ app.get('/dashboard', requireLogin, async (req, res) => {
         }
 
         const isShanu = allowedLanguages.includes('mix');
-
         if (isShanu) {
           if (!orderLanguage && order.fulfillment_status !== 'fulfilled') {
             noLanguageUnfulfilledOrders.push(order);
@@ -200,8 +213,14 @@ app.get('/dashboard', requireLogin, async (req, res) => {
           }
         }
       }
-
       orders = filteredOrders.concat(noLanguageUnfulfilledOrders);
+    }
+
+    // Fetch timeline events for each order (this might be slow if there are many orders)
+    for (const order of orders) {
+      const events = await fetchOrderEvents(order.id, shop, accessToken);
+      // Filter events to only include timeline comments (e.g., events with verb "comment")
+      order.timelineComments = events.filter(event => event.verb === 'comment');
     }
 
     res.render('dashboard', { orders, role: req.session.role });
@@ -215,6 +234,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 // ADMIN-ONLY UPDATE ENDPOINT
 // ---------------------------
 app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
+  // Normally, update your database or Shopify metafields.
   res.json({ status: 'success' });
 });
 
