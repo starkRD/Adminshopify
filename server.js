@@ -102,48 +102,55 @@ function requireAdmin(req, res, next) {
 }
 
 // ---------------------------
-// HELPER: FETCH ORDERS PAGE (LIMIT & Page-Based)
+// HELPER: FETCH ALL ORDERS
 // ---------------------------
-async function fetchOrdersPage(shop, accessToken, limit = 20, page = 1) {
-  // For simplicity we use a naive page parameter.
-  // NOTE: Shopify recommends using cursor-based pagination.
-  const url = `https://${shop}/admin/api/2023-04/orders.json?limit=${limit}&page=${page}`;
-  const response = await axios.get(url, {
-    headers: { 'X-Shopify-Access-Token': accessToken }
-  });
-  return response.data.orders;
-}
+async function fetchAllOrders(shop, accessToken) {
+  let orders = [];
+  let url = `https://${shop}/admin/api/2023-04/orders.json?limit=250`;
 
-// ---------------------------
-// HELPER: FETCH ORDER EVENTS
-// ---------------------------
-async function fetchOrderEvents(orderId, shop, accessToken) {
-  const url = `https://${shop}/admin/api/2023-04/orders/${orderId}/events.json`;
-  try {
-    const response = await axios.get(url, {
-      headers: { 'X-Shopify-Access-Token': accessToken },
-    });
-    return response.data.events;
-  } catch (err) {
-    console.error(`Error fetching events for order ${orderId}:`, err.message);
-    return [];
+  while (url) {
+    try {
+      const response = await axios.get(url, {
+        headers: { 'X-Shopify-Access-Token': accessToken }
+      });
+      orders = orders.concat(response.data.orders);
+
+      const linkHeader = response.headers.link;
+      if (linkHeader) {
+        url = parseNextLink(linkHeader);
+      } else {
+        url = null;
+      }
+    } catch (err) {
+      console.error('Error fetching orders:', err.message);
+      break;
+    }
   }
+
+  return orders;
+}
+
+function parseNextLink(linkHeader) {
+  const links = linkHeader.split(',');
+  for (let link of links) {
+    const [urlPart, relPart] = link.split(';');
+    if (relPart && relPart.includes('rel="next"')) {
+      return urlPart.trim().slice(1, -1);
+    }
+  }
+  return null;
 }
 
 // ---------------------------
-// DASHBOARD ROUTE WITH PAGINATION & TIMELINE EVENTS
+// DASHBOARD ROUTE (UPDATED)
 // ---------------------------
 app.get('/dashboard', requireLogin, async (req, res) => {
   const shop = SHOPIFY_SHOP_DOMAIN;
   const accessToken = SHOPIFY_ACCESS_TOKEN;
-  const page = parseInt(req.query.page) || 1;
-  const limit = 20;
 
   try {
-    // Fetch only one page of orders
-    let orders = await fetchOrdersPage(shop, accessToken, limit, page);
+    let orders = await fetchAllOrders(shop, accessToken);
 
-    // Filter orders based on role/language for non-admins
     if (req.session.role !== 'admin') {
       const allowedLanguages = req.session.languages?.map(lang => lang.toLowerCase()) || [];
       let filteredOrders = [];
@@ -161,6 +168,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
                 foundLanguage = true;
                 break;
               }
+
               if (prop.name.toLowerCase().includes('form data')) {
                 const lines = prop.value.split('\n').map(line => line.trim());
                 for (const line of lines) {
@@ -171,6 +179,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
                   }
                 }
               }
+
               if (foundLanguage) break;
             }
           }
@@ -178,6 +187,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
         }
 
         const isShanu = allowedLanguages.includes('mix');
+
         if (isShanu) {
           if (!orderLanguage && order.fulfillment_status !== 'fulfilled') {
             noLanguageUnfulfilledOrders.push(order);
@@ -190,21 +200,11 @@ app.get('/dashboard', requireLogin, async (req, res) => {
           }
         }
       }
+
       orders = filteredOrders.concat(noLanguageUnfulfilledOrders);
     }
 
-    // Fetch timeline events concurrently for orders on this page
-    await Promise.all(orders.map(async order => {
-      try {
-        const events = await fetchOrderEvents(order.id, shop, accessToken);
-        order.timelineComments = events.filter(event => event.verb === 'comment');
-      } catch (e) {
-        console.error(`Error fetching events for order ${order.id}:`, e.message);
-        order.timelineComments = [];
-      }
-    }));
-
-    res.render('dashboard', { orders, role: req.session.role, currentPage: page });
+    res.render('dashboard', { orders, role: req.session.role });
   } catch (error) {
     console.error('Error fetching orders:', error.response?.data || error.message);
     res.status(500).send('Error fetching orders');
@@ -215,24 +215,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 // ADMIN-ONLY UPDATE ENDPOINT
 // ---------------------------
 app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
-  // Normally, update your database or Shopify metafields.
   res.json({ status: 'success' });
-});
-
-// ---------------------------
-// NEW ENDPOINT: Lazy-Load Comments on Demand (Optional)
-// ---------------------------
-app.get('/get-order-comments/:orderId', requireLogin, async (req, res) => {
-  const { orderId } = req.params;
-  const shop = SHOPIFY_SHOP_DOMAIN;
-  const accessToken = SHOPIFY_ACCESS_TOKEN;
-  try {
-    const events = await fetchOrderEvents(orderId, shop, accessToken);
-    const timelineComments = events.filter(e => e.verb === 'comment');
-    res.json({ events: timelineComments });
-  } catch (err) {
-    res.status(500).json({ error: 'Error fetching comments' });
-  }
 });
 
 // ---------------------------
