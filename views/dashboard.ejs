@@ -39,7 +39,6 @@
           <col style="width:6%;">
           <col style="width:22%;">
           <col style="width:5%;"> <!-- New column for Done checkbox -->
-          <col style="width:?%;"> <!-- Adjust if you keep Comments; otherwise remove -->
         </colgroup>
 
         <thead class="table-dark">
@@ -50,7 +49,6 @@
             <th>Expected Delivery</th>
             <th>Feedback/Changes</th>
             <th>Done</th> <!-- New column header -->
-            <th>Comments</th> <!-- Remove if you don't want Comments column -->
           </tr>
         </thead>
         <tbody>
@@ -179,11 +177,6 @@
               <!-- Done Checkbox -->
               <td class="text-center">
                 <input type="checkbox" name="done" data-order-id="<%= order.id %>">
-              </td>
-
-              <!-- Comments -->
-              <td>
-                <%= order.comment || 'N/A' %>
               </td>
             </tr>
           <% }); %>
