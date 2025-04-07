@@ -4,7 +4,7 @@ const cookieSession = require('cookie-session');
 const path = require('path');
 const { Pool } = require('pg'); // For local Neon queries
 
-// Import the Neon API handlers from the api folder
+// Import the Neon API handlers
 const updateOrderHandler = require('./api/update-order.js');
 const getOrdersHandler = require('./api/get-orders.js');
 
@@ -147,22 +147,23 @@ function parseNextLink(linkHeader) {
 }
 
 // ---------------------------
-// NEW: HELPER: FETCH LATEST LOCAL ORDERS FROM NEON (order_history)
+// HELPER: FETCH LATEST LOCAL ORDERS FROM NEON
+// (Uses order_history table to find the latest row per order_id)
 // ---------------------------
 async function fetchLocalOrders() {
   try {
     const localPool = new Pool({
       connectionString: process.env.NEON_DATABASE_URL,
     });
-    // Query to get the latest update for each order using DISTINCT ON
     const query = `
       SELECT DISTINCT ON (order_id) 
         order_id, note, done, editing, delivered, updated_at
       FROM order_history
-      ORDER BY order_id, updated_at DESC;
+      ORDER BY order_id, updated_at DESC
     `;
     const result = await localPool.query(query);
     console.log("Latest local updates from Neon:", result.rows);
+
     const localMap = {};
     for (const row of result.rows) {
       localMap[row.order_id] = {
@@ -180,22 +181,23 @@ async function fetchLocalOrders() {
 }
 
 // ---------------------------
-// DASHBOARD ROUTE (UPDATED TO MERGE LOCAL DATA USING order.number)
+// DASHBOARD ROUTE (MERGES LATEST LOCAL UPDATES USING order.number)
 // ---------------------------
 app.get('/dashboard', requireLogin, async (req, res) => {
   const shop = SHOPIFY_SHOP_DOMAIN;
   const accessToken = SHOPIFY_ACCESS_TOKEN;
 
   try {
-    // 1. Fetch orders from Shopify
+    console.log("Fetching Shopify orders...");
     let orders = await fetchAllOrders(shop, accessToken);
+    console.log("Fetched Shopify orders count:", orders.length);
 
-    // 2. Fetch the latest local updates from Neon (order_history)
+    console.log("Fetching local updates...");
     let localMap = await fetchLocalOrders();
 
-    // 3. Merge local data into each Shopify order using order.number as the key.
-    // Ensure that the front-end sends the order's number as the identifier.
+    console.log("Merging local updates with Shopify orders...");
     orders.forEach(order => {
+      // Use order.number as the key
       if (localMap[order.number]) {
         const local = localMap[order.number];
         order.note = local.note;
@@ -205,7 +207,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
       }
     });
 
-    // 4. Existing filtering logic for non-admin users remains unchanged
+    // Existing filtering logic for non-admin users
     if (req.session.role !== 'admin') {
       const allowedLanguages = req.session.languages?.map(lang => lang.toLowerCase()) || [];
       let filteredOrders = [];
@@ -257,6 +259,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
       orders = filteredOrders.concat(noLanguageUnfulfilledOrders);
     }
 
+    console.log("Rendering dashboard with merged data...");
     res.render('dashboard', { orders, role: req.session.role });
   } catch (error) {
     console.error('Error fetching orders:', error.response?.data || error.message);
@@ -272,7 +275,7 @@ app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
 });
 
 // ---------------------------
-// NEW: NEON DATABASE API ENDPOINTS
+// NEON DATABASE API ENDPOINTS
 // ---------------------------
 app.post('/api/update-order', requireLogin, requireAdmin, (req, res) => {
   updateOrderHandler(req, res);
@@ -293,9 +296,6 @@ app.get('/', (req, res) => {
   }
 });
 
-// ---------------------------
-// START SERVER
-// ---------------------------
 app.listen(PORT, () => {
   console.log(`App running on port ${PORT}`);
 });
