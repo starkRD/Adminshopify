@@ -3,10 +3,9 @@ const axios = require('axios');
 const cookieSession = require('cookie-session');
 const path = require('path');
 
-// NEW: Import the Neon API handlers from your api folder.
-// (Ensure that your api/update-order.js and api/get-orders.js use "export default" for this to work.)
-const updateOrderHandler = require('./api/update-order.js').default;
-const getOrdersHandler = require('./api/get-orders.js').default;
+// NEW: Import the Neon API handlers from the api folder
+const updateOrderHandler = require('./api/update-order.js');
+const getOrdersHandler = require('./api/get-orders.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -226,7 +225,6 @@ app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
 // ---------------------------
 // NEW: NEON DATABASE API ENDPOINTS
 // ---------------------------
-// These endpoints use your api files to update and get orders from your Neon database.
 app.post('/api/update-order', requireLogin, requireAdmin, (req, res) => {
   updateOrderHandler(req, res);
 });
