@@ -1,139 +1,201 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Order Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .container {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+            border: 1px solid #ddd;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        th {
+            background-color: #333;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .order-details {
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        /* Set column widths */
+        .col-number {
+            width: 80px;
+        }
+        .col-customer {
+            width: 150px;
+        }
+        .col-details {
+            width: auto;
+        }
+        .col-delivery {
+            width: 100px;
+        }
+        .col-feedback {
+            width: 150px;
+        }
+        
+        /* Admin/viewer specific styling */
+        .admin-view .col-details {
+            width: auto;
+        }
+        .viewer-view .col-details {
+            width: 60%;
+        }
+        
+        /* For smaller screens */
+        @media (max-width: 768px) {
+            th, td {
+                padding: 5px;
+                font-size: 14px;
+            }
+        }
+    </style>
 </head>
-<body class="bg-light">
-  <div class="container my-4">
-    <h1 class="mb-4">Order Dashboard</h1>
-    <div class="mb-3">
-      Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
+<body>
+    <h1>Order Dashboard</h1>
+    <p>Logged in as: <%= role %> | <a href="/logout">Logout</a></p>
+    
+    <div class="container <%= role === 'admin' ? 'admin-view' : 'viewer-view' %>">
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-number">Order Number</th>
+                    <th class="col-customer">Customer Info</th>
+                    <th class="col-details">Order Details</th>
+                    <% if (role !== 'admin') { %>
+                        <th class="col-delivery">Expected Delivery</th>
+                        <th class="col-feedback">Feedback/Changes</th>
+                    <% } %>
+                </tr>
+            </thead>
+            <tbody>
+                <% orders.forEach(order => { %>
+                    <tr>
+                        <td class="col-number">#<%= order.order_number || order.name %></td>
+                        <td class="col-customer"><%= order.customer ? order.customer.first_name + ' ' + order.customer.last_name : 'N/A' %></td>
+                        <td class="col-details">
+                            <% 
+                            // Extract data from line items
+                            let songDetails = '';
+                            let deliveryDate = '';
+                            
+                            if (order.line_items && order.line_items.length > 0) {
+                                // Get the product title from the first line item
+                                songDetails += '<strong>' + order.line_items[0].title + '</strong><br>';
+                                
+                                // Extract form data
+                                let formData = '';
+                                let language = '';
+                                let details = {};
+                                
+                                order.line_items.forEach(item => {
+                                    if (item.properties && item.properties.length > 0) {
+                                        item.properties.forEach(prop => {
+                                            if (prop.name === 'Form Data' || prop.name.includes('Form Data')) {
+                                                formData = prop.value;
+                                            } else {
+                                                // Store other properties
+                                                details[prop.name] = prop.value;
+                                                if (prop.name.toLowerCase() === 'language') {
+                                                    language = prop.value;
+                                                }
+                                            }
+                                        });
+                                    }
+                                });
+                                
+                                // If we have form data, display it
+                                if (formData) {
+                                    songDetails += formData.split('\n').join('<br>');
+                                } else {
+                                    // Otherwise display individual properties
+                                    for (const [key, value] of Object.entries(details)) {
+                                        songDetails += '<strong>' + key + ':</strong> ' + value + '<br>';
+                                    }
+                                }
+                                
+                                // Calculate delivery date (you can adjust this based on your business logic)
+                                if (details['Delivery Time'] && details['Delivery Time'].includes('5-7 Days')) {
+                                    const orderDate = new Date(order.created_at);
+                                    const deliveryDateObj = new Date(orderDate);
+                                    deliveryDateObj.setDate(orderDate.getDate() + 7);
+                                    
+                                    // Format date to display
+                                    const options = { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' };
+                                    deliveryDate = deliveryDateObj.toLocaleDateString('en-US', options);
+                                }
+                            }
+                            %>
+                            <%- songDetails %>
+                        </td>
+                        <% if (role !== 'admin') { %>
+                            <td class="col-delivery"><%= deliveryDate || 'N/A' %></td>
+                            <td class="col-feedback">
+                                <% if (role === 'admin') { %>
+                                    <textarea id="feedback-<%= order.id %>" rows="3" style="width: 100%;"></textarea>
+                                    <button onclick="saveFeedback('<%= order.id %>')">Save</button>
+                                <% } else { %>
+                                    <!-- For viewers, just display feedback if available -->
+                                    <div id="feedback-display-<%= order.id %>"></div>
+                                <% } %>
+                            </td>
+                        <% } %>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
     </div>
-    <table class="table table-bordered table-striped">
-      <thead class="table-dark">
-        <tr>
-          <th>Order Number</th>
-          <th>Customer Info</th>
-          <th>Order Details</th>
-          <th>Expected Delivery</th>
-          <th>Feedback/Changes</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% orders.forEach(order => { %>
-          <tr>
-            <!-- Use order.name to display the Shopify order number (e.g., "#1001") -->
-            <td><%= order.name %></td>
-            <td>
-              <% if (order.customer) { %>
-                <%= order.customer.first_name %> <%= order.customer.last_name %><br>
-                <small><%= order.customer.phone %></small>
-              <% } else { %>
-                Guest
-              <% } %>
-            </td>
-            <td>
-              <% order.line_items.forEach(item => { %>
-                <div>
-                  <!-- Always display the item title -->
-                  <strong><%= item.title %></strong><br>
-                  
-                  <% if (item.properties && item.properties.length > 0) { %>
-                    <% item.properties.forEach(prop => { 
-                         const propName = prop.name.toLowerCase();
-                         let displayValue = prop.value;
-                         let shouldHide = false;
-                         
-                         // If this property is a "Form Data" block, parse it.
-                         if (propName.includes('form data')) {
-                           if (role === 'viewer') {
-                             // Split the text into individual lines.
-                             let lines = displayValue.split('\n');
-                             // Filter out confidential lines.
-                             lines = lines.filter(line => {
-                               const lowerLine = line.toLowerCase();
-                               if (
-                                 lowerLine.includes('whatsapp') ||
-                                 lowerLine.includes('price') ||
-                                 lowerLine.includes('song type') ||
-                                 lowerLine.includes('uploaded images') ||
-                                 lowerLine.includes('selected addons')
-                               ) {
-                                 return false;
-                               }
-                               return true;
-                             });
-                             displayValue = lines.join('\n');
-                           }
-                         } else {
-                           // For properties that are not "Form Data", hide them entirely if they are confidential.
-                           if (role === 'viewer') {
-                             if (
-                               propName.includes('whatsapp') ||
-                               propName.includes('price') ||
-                               propName.includes('song type') ||
-                               propName.includes('uploaded images') ||
-                               propName.includes('selected addons')
-                             ) {
-                               shouldHide = true;
-                             }
-                           }
-                         }
-                    %>
-                      <% if (!shouldHide) { %>
-                        <small><%= prop.name %>: <%= displayValue %></small><br>
-                      <% } %>
-                    <% }); %>
-                  <% } %>
-                </div>
-                <hr class="my-1">
-              <% }); %>
-            </td>
-            <td>
-              <% 
-                let deliveryDate = new Date(order.created_at);
-                // Example logic: if order has tag "Basic", add 10 days; if "Premium", add 5 days.
-                if (order.tags && order.tags.includes('Basic')) {
-                  deliveryDate.setDate(deliveryDate.getDate() + 10);
-                } else if (order.tags && order.tags.includes('Premium')) {
-                  deliveryDate.setDate(deliveryDate.getDate() + 5);
+
+    <% if (role === 'admin') { %>
+    <script>
+        function saveFeedback(orderId) {
+            const feedback = document.getElementById(`feedback-${orderId}`).value;
+            fetch('/update-feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ orderId, feedback }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Feedback saved successfully');
+                } else {
+                    alert('Error saving feedback');
                 }
-              %>
-              <%= deliveryDate.toDateString() %>
-            </td>
-            <td>
-              <% if (role === 'admin') { %>
-                <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field form-control">
-              <% } else { %>
-                <input type="text" value="<%= order.note || '' %>" class="form-control" readonly>
-              <% } %>
-            </td>
-          </tr>
-        <% }); %>
-      </tbody>
-    </table>
-  </div>
-  
-  <script>
-    // For admins, enable feedback update on blur event.
-    if ("<%= role %>" === "admin") {
-      document.querySelectorAll('.feedback-field').forEach(field => {
-        field.addEventListener('blur', function() {
-          const orderId = this.getAttribute('data-order-id');
-          const feedback = this.value;
-          fetch('/update-feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId, feedback })
-          })
-          .then(response => response.json())
-          .then(data => console.log("Feedback saved:", data))
-          .catch(err => console.error("Error saving feedback:", err));
-        });
-      });
-    }
-  </script>
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving feedback');
+            });
+        }
+    </script>
+    <% } %>
 </body>
 </html>
