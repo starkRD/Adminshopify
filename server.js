@@ -3,6 +3,11 @@ const axios = require('axios');
 const cookieSession = require('cookie-session');
 const path = require('path');
 
+// NEW: Import the Neon order API handlers from the api folder.
+// (Ensure that your api/update-order.js and api/get-orders.js use "export default" so that .default works here.)
+const updateOrderHandler = require('./api/update-order.js').default;
+const getOrdersHandler = require('./api/get-orders.js').default;
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -212,10 +217,24 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 });
 
 // ---------------------------
-// ADMIN-ONLY UPDATE ENDPOINT
+// ADMIN-ONLY UPDATE ENDPOINT (existing)
 // ---------------------------
 app.post('/update-feedback', requireLogin, requireAdmin, (req, res) => {
   res.json({ status: 'success' });
+});
+
+// ---------------------------
+// NEW: API ENDPOINTS FOR NEON DATABASE
+// ---------------------------
+// These endpoints integrate our Neon database updates via our api files.
+app.post('/api/update-order', requireLogin, requireAdmin, (req, res) => {
+  // Call the update-order handler from the api folder.
+  updateOrderHandler(req, res);
+});
+
+app.get('/api/get-orders', requireLogin, (req, res) => {
+  // Call the get-orders handler from the api folder.
+  getOrdersHandler(req, res);
 });
 
 // ---------------------------
@@ -235,3 +254,4 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`App running on port ${PORT}`);
 });
+
