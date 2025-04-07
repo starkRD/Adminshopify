@@ -314,7 +314,7 @@
     
     // Function to update order data
     function updateOrderData(orderId, updateData) {
-      fetch('/update-order', {
+      fetch('/api/update-order', {  // Updated URL to include /api/
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'
