@@ -9,7 +9,7 @@
     body {
       background-color: #fefbf3;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
+      margin: 0; 
       padding: 0;
     }
     .container {
@@ -26,14 +26,15 @@
       font-size: 1.5rem;
       margin: 0;
     }
-    /* Table Setup */
+    /* TABLE LAYOUT */
     .table {
-      table-layout: fixed;
+      table-layout: fixed; 
       width: 100%;
       background-color: #fff;
+      margin-bottom: 0; /* minimize spacing below table */
     }
     .table-sm td, .table-sm th {
-      padding: 0.3rem; /* Reduced padding */
+      padding: 0.4rem; /* slightly tighter spacing */
     }
     .table thead th {
       background-color: #ffcd00;
@@ -42,58 +43,28 @@
       font-weight: 600;
       font-size: 0.85rem;
       border-color: #ccc;
-      padding: 0.4rem;
     }
     .table-bordered td, .table-bordered th {
       border-color: #ccc;
     }
+    /* Ensure text wraps nicely */
     td, th {
-      word-break: break-word;
       white-space: pre-wrap;
+      word-break: break-word;
       vertical-align: top;
     }
-    /* Use colgroup for fixed percentages */
-    /* Column percentages: Order ID 7%, Customer Info 10%, Order Details 55%, Delivery 6%, Feedback/Changes 22% */
-    /* Minimal extra spacing in order details */
+    /* Column spacing via colgroup for 7% / 10% / 55% / 6% / 22% */
+    /* Minimizing extra margins in line-items */
     .line-item {
-      margin-bottom: 0.1rem;
+      margin-bottom: 0.2rem;
       font-size: 0.9rem;
     }
-    /* Remove extra gap lines */
-    .divider {
-      display: none;
+    .line-item strong {
+      font-size: 0.9rem;
     }
     /* Badge styling */
     .badge {
       font-size: 0.75rem;
-    }
-    /* Responsive: allow horizontal scroll on very small screens */
-    .table-responsive {
-      margin-bottom: 1rem;
-    }
-    /* Mobile adjustments: stack columns vertically */
-    @media (max-width: 768px) {
-      .table {
-        font-size: 0.8rem;
-      }
-      .table thead {
-        display: none;
-      }
-      .table tbody, .table tr, .table td {
-        display: block;
-        width: 100%;
-      }
-      .table td {
-        padding: 0.5rem;
-        border: 1px solid #ddd;
-        margin-bottom: 0.5rem;
-      }
-      .mobile-label {
-        font-weight: 600;
-        text-transform: uppercase;
-        margin-bottom: 0.25rem;
-        color: #555;
-      }
     }
   </style>
 </head>
@@ -133,15 +104,14 @@
           </thead>
           <tbody>
             <% 
-              // Example helper function for expected delivery.
+              // Helper function for expected delivery (stub)
               function getExpectedDelivery(order) {
-                // Insert your actual logic here.
                 return 'N/A';
               }
             %>
             <% orders.forEach(order => { %>
               <tr>
-                <!-- ORDER ID: Removed extra hash -->
+                <!-- ORDER ID (no extra '#' symbol) -->
                 <td>
                   <div style="font-weight:600;"><%= order.name %></div>
                   <% if (order.fulfillment_status === 'fulfilled') { %>
@@ -150,31 +120,34 @@
                     <span class="badge bg-warning text-dark">Unfulfilled</span>
                   <% } %>
                 </td>
+
                 <!-- CUSTOMER INFO -->
                 <td>
                   <% if (order.customer) { %>
-                    <%= order.customer.first_name %> <%= order.customer.last_name %><br>
+                    <%= order.customer.first_name %> <%= order.customer.last_name %><br/>
                     <small><%= order.customer.phone || '' %></small>
                   <% } else { %>
                     Guest
                   <% } %>
                 </td>
-                <!-- ORDER DETAILS: Removed unnecessary gaps -->
+
+                <!-- ORDER DETAILS (minimal spacing) -->
                 <td>
                   <% order.line_items.forEach(item => { %>
                     <div class="line-item">
-                      <strong><%= item.title %></strong> × <%= item.quantity %>
+                      <strong><%= item.title %></strong> × <%= item.quantity %><br/>
                       <% if (item.properties && item.properties.length > 0) { %>
                         <% item.properties.forEach(prop => {
-                            var propName = prop.name.toLowerCase();
-                            var displayValue = prop.value;
-                            var shouldHide = false;
-                            // For "Form Data" properties, filter out confidential info for viewers
+                            let propName = prop.name.toLowerCase();
+                            let displayValue = prop.value;
+                            let shouldHide = false;
+
+                            // If "Form Data", remove confidential lines for viewers
                             if (propName.includes('form data')) {
                               if (role === 'viewer') {
-                                var lines = displayValue.split('\n');
+                                let lines = displayValue.split('\n');
                                 lines = lines.filter(function(line) {
-                                  var lowerLine = line.toLowerCase();
+                                  let lowerLine = line.toLowerCase();
                                   if (
                                     lowerLine.includes('whatsapp') ||
                                     lowerLine.includes('price') ||
@@ -189,6 +162,7 @@
                                 displayValue = lines.join('\n');
                               }
                             } else {
+                              // Hide certain property names for viewer
                               if (role === 'viewer') {
                                 if (
                                   propName.includes('whatsapp') ||
@@ -203,17 +177,19 @@
                             }
                         %>
                           <% if (!shouldHide) { %>
-                            <small><%= prop.name %>: <%= displayValue %></small>
+                            <small><%= prop.name %>: <%= displayValue %></small><br/>
                           <% } %>
                         <% }); %>
                       <% } %>
                     </div>
                   <% }); %>
                 </td>
+
                 <!-- DELIVERY -->
                 <td>
                   <%= getExpectedDelivery(order) %>
                 </td>
+
                 <!-- FEEDBACK/CHANGES -->
                 <td>
                   <% if (role === 'admin') { %>
