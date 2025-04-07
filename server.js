@@ -147,23 +147,29 @@ function parseNextLink(linkHeader) {
 }
 
 // ---------------------------
-// NEW: HELPER: FETCH LOCAL ORDERS FROM NEON
+// NEW: HELPER: FETCH LATEST LOCAL ORDERS FROM NEON (order history)
 // ---------------------------
 async function fetchLocalOrders() {
   try {
-    // Create a new pool for local Neon queries (or reuse one if preferred)
     const localPool = new Pool({
       connectionString: process.env.NEON_DATABASE_URL,
     });
-    const result = await localPool.query('SELECT * FROM orders');
-    console.log("Local orders from Neon:", result.rows);
+    // Query to get the latest update for each order (using DISTINCT ON)
+    const query = `
+      SELECT DISTINCT ON (order_id) 
+        order_id, note, done, editing, delivered, updated_at
+      FROM order_history
+      ORDER BY order_id, updated_at DESC
+    `;
+    const result = await localPool.query(query);
+    console.log("Latest local updates from Neon:", result.rows);
     const localMap = {};
     for (const row of result.rows) {
       localMap[row.order_id] = {
         note: row.note,
         done: row.done,
         editing: row.editing,
-        delivered: row.delivered,
+        delivered: row.delivered
       };
     }
     return localMap;
@@ -174,7 +180,7 @@ async function fetchLocalOrders() {
 }
 
 // ---------------------------
-// DASHBOARD ROUTE (UPDATED TO MERGE LOCAL DATA)
+// DASHBOARD ROUTE (UPDATED TO MERGE LOCAL DATA USING order.number)
 // ---------------------------
 app.get('/dashboard', requireLogin, async (req, res) => {
   const shop = SHOPIFY_SHOP_DOMAIN;
@@ -184,13 +190,16 @@ app.get('/dashboard', requireLogin, async (req, res) => {
     // Fetch orders from Shopify
     let orders = await fetchAllOrders(shop, accessToken);
 
-    // Fetch local updates from Neon
+    // Fetch the latest local updates from Neon (using order_history)
     let localMap = await fetchLocalOrders();
 
-    // Merge local data into each Shopify order using order.id as the key
+    // Merge local data into each Shopify order using order.number as the key.
+    // If your dashboard.ejs uses order.number as the unique identifier,
+    // then we need to use that here. For example, if an order's number is "1001",
+    // the update should be saved with order_id "1001".
     orders.forEach(order => {
-      if (localMap[order.id]) {
-        const local = localMap[order.id];
+      if (localMap[order.number]) {
+        const local = localMap[order.number];
         order.note = local.note;
         order.done = local.done;
         order.editing = local.editing;
