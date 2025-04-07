@@ -9,7 +9,7 @@
     body {
       background-color: #fefbf3;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
+      margin: 0; 
       padding: 0;
     }
     .container {
@@ -34,7 +34,8 @@
       margin-bottom: 0;
     }
     .table-sm td, .table-sm th {
-      padding: 0.4rem;  /* Tightened padding */
+      padding: 0.4rem;
+      min-width: 0; /* Allow columns to shrink */
     }
     .table thead th {
       background-color: #ffcd00;
@@ -51,10 +52,10 @@
       white-space: pre-wrap;
       word-break: break-word;
       vertical-align: top;
+      min-width: 0;
     }
-    /* Use colgroup for fixed percentages */
-    /* Order ID: 7%, Customer Info: 10%, Order Details: 55%, Delivery: 6%, Feedback/Changes: 22% */
-    /* Minimal spacing for line items in Order Details */
+    /* Set fixed percentages using colgroup in HTML */
+    /* Minimal spacing for order details */
     .line-item {
       margin-bottom: 0.2rem;
       font-size: 0.9rem;
@@ -62,18 +63,22 @@
     .line-item strong {
       font-size: 0.9rem;
     }
-    /* Remove extra gaps between properties */
     .property-text {
       margin: 0;
       font-size: 0.85rem;
     }
-    /* Badge styling */
     .badge {
       font-size: 0.75rem;
     }
-    /* Responsive: on very small screens, allow horizontal scroll */
     .table-responsive {
       margin-bottom: 1rem;
+    }
+    /* MOBILE ADJUSTMENTS */
+    @media (max-width: 768px) {
+      .table-sm td, .table-sm th {
+        padding: 0.2rem;
+        font-size: 0.75rem;
+      }
     }
   </style>
 </head>
@@ -87,7 +92,7 @@
         <a href="/login">Logout</a>
       </div>
     </div>
-
+    
     <% if (orders.length === 0) { %>
       <div class="alert alert-warning text-center">
         No orders to display.
@@ -95,7 +100,6 @@
     <% } else { %>
       <div class="table-responsive">
         <table class="table table-sm table-bordered align-middle">
-          <!-- Define fixed column widths -->
           <colgroup>
             <col style="width:7%;">
             <col style="width:10%;">
@@ -121,7 +125,7 @@
             %>
             <% orders.forEach(order => { %>
               <tr>
-                <!-- ORDER ID: No extra '#' symbol -->
+                <!-- ORDER ID: No extra hash -->
                 <td>
                   <div style="font-weight:600;"><%= order.name %></div>
                   <% if (order.fulfillment_status === 'fulfilled') { %>
@@ -130,7 +134,6 @@
                     <span class="badge bg-warning text-dark">Unfulfilled</span>
                   <% } %>
                 </td>
-
                 <!-- CUSTOMER INFO -->
                 <td>
                   <% if (order.customer) { %>
@@ -140,8 +143,7 @@
                     Guest
                   <% } %>
                 </td>
-
-                <!-- ORDER DETAILS with minimal spacing -->
+                <!-- ORDER DETAILS: Minimal spacing -->
                 <td>
                   <% order.line_items.forEach(item => { %>
                     <div class="line-item">
@@ -152,7 +154,6 @@
                                var propName = prop.name.toLowerCase();
                                var displayValue = prop.value;
                                var shouldHide = false;
-                               // If property is "Form Data", filter out confidential info for viewers
                                if (propName.includes('form data')) {
                                  if (role === 'viewer') {
                                    var lines = displayValue.split('\n');
@@ -196,12 +197,10 @@
                     </div>
                   <% }); %>
                 </td>
-
                 <!-- DELIVERY -->
                 <td>
                   <%= getExpectedDelivery(order) %>
                 </td>
-
                 <!-- FEEDBACK/CHANGES -->
                 <td>
                   <% if (role === 'admin') { %>
@@ -210,9 +209,7 @@
                            value="<%= order.note || '' %>"
                            data-order-id="<%= order.id %>">
                   <% } else { %>
-                    <p class="mb-0">
-                      <%= order.note && order.note.length ? order.note : 'No feedback provided.' %>
-                    </p>
+                    <p class="mb-0"><%= order.note && order.note.length ? order.note : 'No feedback provided.' %></p>
                   <% } %>
                 </td>
               </tr>
