@@ -5,192 +5,159 @@
   <title>Order Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { 
-      background-color: #f7f9fc; 
+    body {
+      background-color: #f7f9fc;
     }
-    .table-responsive { 
-      margin-top: 20px; 
+    /* Allow horizontal scrolling for wide tables */
+    .table-container {
+      overflow-x: auto;
     }
-    /* Force columns to respect percentages */
+    .table-responsive {
+      margin-top: 20px;
+    }
     .table {
-      table-layout: fixed; /* Key for colgroup widths */
+      table-layout: fixed;
       width: 100%;
     }
     .feedback-input {
       width: 100%;
     }
+    /* Sticky header */
+    thead th {
+      position: sticky;
+      top: 0;
+      background-color: #343a40;
+      color: white;
+      z-index: 2;
+    }
+    .internal-note-item {
+      border-bottom: 1px solid #ddd;
+      padding: 3px 0;
+    }
+    .internal-note-actions button {
+      margin-right: 5px;
+    }
   </style>
 </head>
 <body class="bg-light">
-  <!-- Changed container to container-fluid for full width -->
   <div class="container-fluid my-4">
     <h1 class="mb-4 text-center">Order Dashboard</h1>
     <div class="mb-3 text-center">
-      Logged in as: <strong><%= role %></strong> | <a href="/login">Logout</a>
+      Logged in as: <strong><%= role %></strong> | <a href="/logout">Logout</a>
     </div>
-    <!-- Statistics section - add this right after the login info div -->
+
+    <!-- Search input -->
+    <div class="row mb-4">
+      <div class="col-md-3 offset-md-4">
+        <input type="text" id="orderSearch" class="form-control" placeholder="Search Orders">
+      </div>
+    </div>
+
+    <!-- Statistics -->
     <div class="container-fluid mb-4">
       <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-4 offset-md-4">
           <div class="card shadow-sm">
-            <div class="card-body">
+            <div class="card-body text-center">
               <h5 class="card-title">Total Unfulfilled Orders</h5>
-              <% 
-                var unfulfilled = 0;
-                orders.forEach(function(order) {
-                  if (!order.delivered) {
-                    unfulfilled++;
-                  }
-                });
-              %>
+              <% let unfulfilled = orders.length; %>
               <h2 class="text-primary"><%= unfulfilled %></h2>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <h5 class="card-title">Language Breakdown</h5>
-              <% 
-                var languageCounts = {};
-                orders.forEach(function(order) {
-                  var language = "Unknown";
-                  if (order.line_items) {
-                    order.line_items.forEach(function(item) {
-                      if (item.properties) {
-                        item.properties.forEach(function(prop) {
-                          if (prop.name.toLowerCase().includes('language')) {
-                            language = prop.value || "Unknown";
-                          }
-                        });
-                      }
-                    });
-                  }
-                  if (!languageCounts[language]) {
-                    languageCounts[language] = 0;
-                  }
-                  languageCounts[language]++;
-                });
-              %>
-              <div class="row">
-                <% for (var lang in languageCounts) { %>
-                  <div class="col-auto mb-2">
-                    <span class="badge bg-light text-dark border">
-                      <%= lang %>: <%= languageCounts[lang] %>
-                    </span>
-                  </div>
-                <% } %>
-              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped align-middle">
-        <!-- Define fixed column widths here -->
-        <colgroup>
-          <col style="width:7%;">
-          <col style="width:10%;">
-          <col style="width:50%;">
-          <col style="width:6%;">
-          <col style="width:17%;">
-          <col style="width:5%;">
-          <col style="width:5%;">
-          <col style="width:5%;">
-        </colgroup>
 
-        <thead class="table-dark">
-          <tr>
-            <th>Order Number</th>
-            <th>Customer Info</th>
-            <th>Order Details</th>
-            <th>Expected Delivery</th>
-            <th>Feedback/Changes</th>
-            <th>Done</th>
-            <th>Editing</th>
-            <th>Delivered</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% 
-            function getDeliveryHours(order) {
-              var timelines = [
-                { name: "Basic", ids: ["41290369269835"], hours: 240 },
-                { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
-                { name: "Premium", ids: ["41290369335371"], hours: 30 },
-                { name: "Beast", ids: ["41290369368139"], hours: 30 },
-                { name: "FAST", ids: ["41274164543563"], hours: 48 },
-                { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
-              ];
-              var matchedHours = [];
-              order.line_items.forEach(function(item) {
-                var variantId = String(item.variant_id);
-                timelines.forEach(function(timeline) {
-                  if(timeline.ids.indexOf(variantId) !== -1) {
-                    matchedHours.push(timeline.hours);
-                  }
-                });
-              });
-              if(matchedHours.length > 0) {
-                return Math.min.apply(null, matchedHours);
-              }
-              return 240;
-            }
-
-            function getExpectedDelivery(order) {
-              var createdAt = new Date(order.created_at);
-              var hours = getDeliveryHours(order);
-              var deliveryTimestamp = createdAt.getTime() + hours * 60 * 60 * 1000;
-              return new Date(deliveryTimestamp).toLocaleDateString("en-IN", {
-                timeZone: "Asia/Kolkata",
-                year: "numeric",
-                month: "short",
-                day: "numeric"
-              });
-            }
-          %>
-
-          <% orders.forEach(function(order) { %>
+    <!-- Orders Table -->
+    <div class="table-container">
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle" id="ordersTable">
+          <colgroup>
+            <col style="width:7%;">
+            <col style="width:10%;">
+            <col style="width:35%;">
+            <col style="width:10%;">
+            <col style="width:10%;">
+            <col style="width:5%;">
+            <col style="width:5%;">
+            <col style="width:5%;">
+            <col style="width:13%;">
+          </colgroup>
+          <thead class="table-dark">
             <tr>
-              <td><%= order.name %></td>
-              <td>
-                <% if (order.customer) { %>
-                  <%= order.customer.first_name %> <%= order.customer.last_name %><br>
-                  <small><%= order.customer.phone %></small>
-                <% } else { %>
-                  Guest
-                <% } %>
-              </td>
-              <td>
-                <div class="order-details-container" id="order-details-<%= order.id %>">
-                  <% order.line_items.forEach(function(item) { %>
-                    <div>
-                      <strong><%= item.title %></strong> &times; <%= item.quantity %><br>
-                      <% if (item.properties && item.properties.length > 0) { %>
-                        <% item.properties.forEach(function(prop) { 
-                            var propName = prop.name.toLowerCase();
-                            var displayValue = prop.value;
-                            var shouldHide = false;
+              <th>Order Number</th>
+              <th>Customer Info</th>
+              <th>Order Details</th>
+              <th>Expected Delivery</th>
+              <th>Feedback/Changes</th>
+              <th>Done</th>
+              <th>Editing</th>
+              <th>Delivered</th>
+              <th>Internal Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%
+              // Helper functions for expected delivery
+              function getDeliveryHours(order) {
+                const timelines = [
+                  { name: "Basic", ids: ["41290369269835"], hours: 240 },
+                  { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
+                  { name: "Premium", ids: ["41290369335371"], hours: 30 },
+                  { name: "Beast", ids: ["41290369368139"], hours: 30 },
+                  { name: "FAST", ids: ["41274164543563"], hours: 48 },
+                  { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
+                ];
+                let matchedHours = [];
+                if (order.line_items) {
+                  order.line_items.forEach(item => {
+                    const variantId = String(item.variant_id);
+                    timelines.forEach(timeline => {
+                      if (timeline.ids.includes(variantId)) {
+                        matchedHours.push(timeline.hours);
+                      }
+                    });
+                  });
+                }
+                return matchedHours.length > 0 ? Math.min(...matchedHours) : 240;
+              }
+              function getExpectedDelivery(order) {
+                const createdAt = new Date(order.created_at);
+                const hours = getDeliveryHours(order);
+                const deliveryTimestamp = createdAt.getTime() + hours * 3600 * 1000;
+                return new Date(deliveryTimestamp).toLocaleDateString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric"
+                });
+              }
+            %>
+            <% orders.forEach(order => { %>
+              <tr data-order-number="<%= order.name.toLowerCase() %>">
+                <td><%= order.name %></td>
+                <td>
+                  <% if (order.customer) { %>
+                    <%= order.customer.first_name %> <%= order.customer.last_name %><br>
+                    <small><%= order.customer.phone %></small>
+                  <% } else { %>
+                    Guest
+                  <% } %>
+                </td>
+                <td>
+                  <div class="order-details-container" id="order-details-<%= order.id %>">
+                    <% 
+                      order.line_items.forEach(item => {
+                        %><div><strong><%= item.title %></strong> &times; <%= item.quantity %><br><% 
+                        
+                        if (item.properties && item.properties.length > 0) {
+                          item.properties.forEach(prop => {
+                            const propName = prop.name.toLowerCase();
+                            let displayValue = prop.value;
 
-                            if (propName.includes('form data') && role === 'viewer') {
-                              var lines = displayValue.split('\n');
-                              lines = lines.filter(function(line) {
-                                var lowerLine = line.toLowerCase();
-                                if (
-                                  lowerLine.includes('whatsapp') ||
-                                  lowerLine.includes('price') ||
-                                  lowerLine.includes('song type') ||
-                                  lowerLine.includes('uploaded images') ||
-                                  lowerLine.includes('selected addons')
-                                ) {
-                                  return false;
-                                }
-                                return true;
-                              });
-                              displayValue = lines.join('\n');
-                            } else if (role === 'viewer') {
+                            // Hide certain properties for viewers
+                            if (role === 'viewer') {
+                              // If it references any restricted phrase, skip
                               if (
                                 propName.includes('whatsapp') ||
                                 propName.includes('price') ||
@@ -198,54 +165,246 @@
                                 propName.includes('uploaded images') ||
                                 propName.includes('selected addons')
                               ) {
-                                shouldHide = true;
+                                return; // skip showing
+                              }
+                              // If "form data" property for viewer, let's filter lines within it
+                              if (propName.includes('form data')) {
+                                // We'll filter lines that contain restricted keywords
+                                let lines = displayValue.split('\n').filter(line => {
+                                  const lowerLine = line.toLowerCase();
+                                  return !(
+                                    lowerLine.includes('whatsapp') ||
+                                    lowerLine.includes('price') ||
+                                    lowerLine.includes('song type') ||
+                                    lowerLine.includes('uploaded images') ||
+                                    lowerLine.includes('selected addons')
+                                  );
+                                });
+                                displayValue = lines.join('\n');
                               }
                             }
-                        %>
-                          <% if (!shouldHide) { %>
-                            <small><%= prop.name %>: <%= displayValue %></small><br>
-                          <% } %>
-                        <% }); %>
-                      <% } %>
-                    </div>
-                    <hr class="my-1">
-                  <% }); %>
-                </div>
-                <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.id %>">Copy</button>
-              </td>
-              <td><%= getExpectedDelivery(order) %></td>
-              <td>
-                <input type="text" value="<%= order.note || '' %>" data-order-id="<%= order.id %>" class="feedback-field form-control" <%= role !== 'admin' ? 'readonly' : '' %>>
-              </td>
-              <td class="text-center">
-                <input type="checkbox" name="done" data-order-id="<%= order.id %>" class="status-checkbox done-checkbox" <%= order.done ? 'checked' : '' %>>
-              </td>
-              <td class="text-center">
-                <input type="checkbox" name="editing" data-order-id="<%= order.id %>" class="status-checkbox editing-checkbox" <%= order.editing ? 'checked' : '' %>>
-              </td>
-              <td class="text-center">
-                <input type="checkbox" name="delivered" data-order-id="<%= order.id %>" class="status-checkbox delivered-checkbox" <%= order.delivered ? 'checked' : '' %>>
-              </td>
-            </tr>
-          <% }); %>
-        </tbody>
-      </table>
+
+                            // Show the (filtered) property to the user
+                            %><small><%= prop.name %>: <%= displayValue %></small><br><%
+                          });
+                        }
+                        %></div><hr class="my-1"><%
+                      });
+                    %>
+                  </div>
+                  <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.id %>">Copy</button>
+                </td>
+                <td><%= getExpectedDelivery(order) %></td>
+                <td>
+                  <!-- Read-only feedback/changes from order.note -->
+                  <div><%= order.note || '' %></div>
+                </td>
+                <!-- Done / Editing / Delivered Checkboxes -->
+                <td class="text-center">
+                  <input 
+                    type="checkbox" 
+                    name="done" 
+                    data-order-id="<%= order.id %>" 
+                    class="status-checkbox done-checkbox" 
+                    <%= order.status.done ? 'checked' : '' %> 
+                  >
+                </td>
+                <td class="text-center">
+                  <input 
+                    type="checkbox" 
+                    name="editing" 
+                    data-order-id="<%= order.id %>" 
+                    class="status-checkbox editing-checkbox" 
+                    <%= order.status.editing ? 'checked' : '' %>
+                  >
+                </td>
+                <td class="text-center">
+                  <input 
+                    type="checkbox" 
+                    name="delivered" 
+                    data-order-id="<%= order.id %>" 
+                    class="status-checkbox delivered-checkbox" 
+                    <%= order.status.delivered ? 'checked' : '' %>
+                  >
+                </td>
+                <td>
+                  <div class="internal-notes-list" data-order-id="<%= order.id %>">
+                    <% order.internalNotes.forEach((note, idx) => { %>
+                      <div class="internal-note-item" data-note-index="<%= idx %>">
+                        <span class="note-text"><%= note %></span>
+                        <span class="internal-note-actions">
+                          <button 
+                            class="btn btn-xs btn-warning edit-note-btn" 
+                            data-order-id="<%= order.id %>" 
+                            data-note-index="<%= idx %>"
+                          >Edit</button>
+                          <button 
+                            class="btn btn-xs btn-danger delete-note-btn" 
+                            data-order-id="<%= order.id %>" 
+                            data-note-index="<%= idx %>"
+                          >Delete</button>
+                        </span>
+                      </div>
+                    <% }); %>
+                  </div>
+                  <div class="mt-2">
+                    <input 
+                      type="text" 
+                      class="form-control new-note-input" 
+                      data-order-id="<%= order.id %>" 
+                      placeholder="Add new note"
+                    >
+                    <button 
+                      class="btn btn-sm btn-primary mt-1 add-note-btn" 
+                      data-order-id="<%= order.id %>"
+                    >Submit Note</button>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
+  <!-- Client-side Scripts -->
   <script>
-    // No local DB calls - these do nothing or can be removed if you want no updates at all
+    // Search functionality (by order number)
+    document.getElementById('orderSearch').addEventListener('input', function() {
+      const searchValue = this.value.toLowerCase();
+      document.querySelectorAll('#ordersTable tbody tr').forEach(function(row) {
+        const orderNumber = row.getAttribute('data-order-number') || '';
+        row.style.display = orderNumber.includes(searchValue) ? '' : 'none';
+      });
+    });
 
+    // Copy order details to clipboard
     document.querySelectorAll('.copy-btn').forEach(function(button) {
       button.addEventListener('click', function() {
-        var orderId = this.getAttribute('data-order-id');
-        var detailsElement = document.getElementById('order-details-' + orderId);
+        const orderId = this.getAttribute('data-order-id');
+        const detailsElement = document.getElementById('order-details-' + orderId);
         if (detailsElement) {
-          var textToCopy = detailsElement.innerText;
-          navigator.clipboard.writeText(textToCopy).catch(function(err) {
-            console.error('Failed to copy text:', err);
+          navigator.clipboard.writeText(detailsElement.innerText).catch(function(err) {
+            console.error('Failed to copy:', err);
           });
         }
+      });
+    });
+
+    // Update status when checkboxes change
+    function updateStatus(orderId, done, editing, delivered) {
+      fetch('/update_status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, done, editing, delivered })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (!data.success) {
+          alert('Error updating status: ' + data.error);
+        }
+      })
+      .catch(err => {
+        console.error('Error updating status:', err);
+        alert('Error updating status.');
+      });
+    }
+    document.querySelectorAll('.status-checkbox').forEach(function(checkbox) {
+      checkbox.addEventListener('change', function() {
+        const orderId = this.getAttribute('data-order-id');
+        const done = document.querySelector('.done-checkbox[data-order-id="' + orderId + '"]').checked;
+        const editing = document.querySelector('.editing-checkbox[data-order-id="' + orderId + '"]').checked;
+        const delivered = document.querySelector('.delivered-checkbox[data-order-id="' + orderId + '"]').checked;
+        updateStatus(orderId, done, editing, delivered);
+      });
+    });
+
+    // Internal Notes: add new
+    document.querySelectorAll('.add-note-btn').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const orderId = this.getAttribute('data-order-id');
+        const inputElem = document.querySelector('.new-note-input[data-order-id="' + orderId + '"]');
+        const note = inputElem.value.trim();
+        if (note === "") {
+          alert('Please enter a note.');
+          return;
+        }
+        fetch('/add_internal_note', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, note })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Note added successfully!');
+            location.reload();
+          } else {
+            alert('Error: ' + data.error);
+          }
+        })
+        .catch(err => {
+          console.error('Error adding note:', err);
+          alert('Error adding note.');
+        });
+      });
+    });
+
+    // Internal Notes: edit
+    document.querySelectorAll('.edit-note-btn').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const orderId = this.getAttribute('data-order-id');
+        const noteIndex = this.getAttribute('data-note-index');
+        const noteItem = this.parentElement.parentElement;
+        const currentText = noteItem.querySelector('.note-text').innerText;
+        const newText = prompt('Edit note:', currentText);
+        if (newText === null) return; // Cancel
+        fetch('/edit_internal_note', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, noteIndex, updatedNote: newText })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Note updated successfully!');
+            location.reload();
+          } else {
+            alert('Error: ' + data.error);
+          }
+        })
+        .catch(err => {
+          console.error('Error updating note:', err);
+          alert('Error updating note.');
+        });
+      });
+    });
+
+    // Internal Notes: delete
+    document.querySelectorAll('.delete-note-btn').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const orderId = this.getAttribute('data-order-id');
+        const noteIndex = this.getAttribute('data-note-index');
+        if (!confirm('Are you sure you want to delete this note?')) return;
+        fetch('/delete_internal_note', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, noteIndex })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Note deleted successfully!');
+            location.reload();
+          } else {
+            alert('Error: ' + data.error);
+          }
+        })
+        .catch(err => {
+          console.error('Error deleting note:', err);
+          alert('Error deleting note.');
+        });
       });
     });
   </script>
