@@ -245,16 +245,12 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 // Status and Notes Endpoints
 // --------------------
 app.post('/update_status', requireLogin, async (req, res) => {
-  const { orderId, done, editing, delivered } = req.body;
+  const { orderId, done } = req.body;
   if (!orderId) {
     return res.json({ success: false, error: 'Order ID is required.' });
   }
   try {
-    const status = {
-      done: Boolean(done),
-      editing: Boolean(editing),
-      delivered: Boolean(delivered)
-    };
+    const status = { done: Boolean(done) };
     await saveStatus(orderId, status);
     return res.json({ success: true });
   } catch (error) {
