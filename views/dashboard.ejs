@@ -136,7 +136,7 @@
               }
             %>
             <% orders.forEach(order => { %>
-              tr
+              <tr
                 data-order-number="<%= order.name.toLowerCase() %>"
                data-delivery="<%= new Date(order.created_at).getTime() + getDeliveryHours(order)*3600*1000 %>"
               >
