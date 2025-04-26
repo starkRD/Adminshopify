@@ -79,8 +79,6 @@
             <col style="width:10%;">
             <col style="width:10%;">
             <col style="width:5%;">
-            <col style="width:5%;">
-            <col style="width:5%;">
             <col style="width:13%;">
           </colgroup>
           <thead class="table-dark">
@@ -91,8 +89,6 @@
               <th>Expected Delivery</th>
               <th>Feedback/Changes</th>
               <th>Done</th>
-              <th>Editing</th>
-              <th>Delivered</th>
               <th>Internal Notes</th>
             </tr>
           </thead>
@@ -209,24 +205,6 @@
                     <%= order.status.done ? 'checked' : '' %> 
                   >
                 </td>
-                <td class="text-center">
-                  <input 
-                    type="checkbox" 
-                    name="editing" 
-                    data-order-id="<%= order.id %>" 
-                    class="status-checkbox editing-checkbox" 
-                    <%= order.status.editing ? 'checked' : '' %>
-                  >
-                </td>
-                <td class="text-center">
-                  <input 
-                    type="checkbox" 
-                    name="delivered" 
-                    data-order-id="<%= order.id %>" 
-                    class="status-checkbox delivered-checkbox" 
-                    <%= order.status.delivered ? 'checked' : '' %>
-                  >
-                </td>
                 <td>
                   <div class="internal-notes-list" data-order-id="<%= order.id %>">
                     <% order.internalNotes.forEach((note, idx) => { %>
@@ -293,11 +271,11 @@
     });
 
     // Update status when checkboxes change
-    function updateStatus(orderId, done, editing, delivered) {
+   function updateStatus(orderId, done) {
       fetch('/update_status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, done, editing, delivered })
+        body: JSON.stringify({ orderId, done })
       })
       .then(response => response.json())
       .then(data => {
@@ -310,15 +288,11 @@
         alert('Error updating status.');
       });
     }
-    document.querySelectorAll('.status-checkbox').forEach(function(checkbox) {
-      checkbox.addEventListener('change', function() {
-        const orderId = this.getAttribute('data-order-id');
-        const done = document.querySelector('.done-checkbox[data-order-id="' + orderId + '"]').checked;
-        const editing = document.querySelector('.editing-checkbox[data-order-id="' + orderId + '"]').checked;
-        const delivered = document.querySelector('.delivered-checkbox[data-order-id="' + orderId + '"]').checked;
-        updateStatus(orderId, done, editing, delivered);
-      });
-    });
+    document.querySelectorAll('.done-checkbox').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        updateStatus(this.dataset.orderId, this.checked);
+     });
+   });
 
     // Internal Notes: add new
     document.querySelectorAll('.add-note-btn').forEach(function(button) {
