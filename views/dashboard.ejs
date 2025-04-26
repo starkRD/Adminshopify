@@ -103,12 +103,12 @@
               // Helper functions for expected delivery
               function getDeliveryHours(order) {
                 const timelines = [
-                  { name: "Basic", ids: ["41290369269835"], hours: 240 },
-                  { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
-                  { name: "Premium", ids: ["41290369335371"], hours: 30 },
-                  { name: "Beast", ids: ["41290369368139"], hours: 30 },
-                  { name: "FAST", ids: ["41274164543563"], hours: 48 },
-                  { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
+                      { name: "Basic",   ids: ["41290369269835"],                                            hours: 240 }, // 10 days
+                      { name: "Standard",ids: ["41290369302603","41274164510795","41370839711819"],          hours: 120 }, // 5 days
+                      { name: "Premium", ids: ["41290369335371","41370839744587"],                            hours: 30  }, // 30h
+                      { name: "Beast",   ids: ["41290369368139","41370839777355"],                            hours: 30  }, // 30h
+                      { name: "FAST",    ids: ["41274164543563","41421665075275"],                            hours: 48  }, // 48h (fast delivery add-on)
+                      { name: "EXPRESS", ids: ["41274164576331","7302540984395"],                             hours: 24  }  // 24h (express superfast)
                 ];
                 let matchedHours = [];
                 if (order.line_items) {
