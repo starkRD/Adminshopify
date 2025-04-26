@@ -51,6 +51,12 @@
       <div class="col-md-3 offset-md-4">
         <input type="text" id="orderSearch" class="form-control" placeholder="Search Orders">
       </div>
+<div class="col-md-2">
+        <select id="sortFilter" class="form-select form-select-sm">
+         <option value="">Default order</option>
+         <option value="delivery">Sort by Expected Delivery</option>
+       </select>
+      </div>
     </div>
 
     <!-- Statistics -->
@@ -130,7 +136,10 @@
               }
             %>
             <% orders.forEach(order => { %>
-              <tr data-order-number="<%= order.name.toLowerCase() %>">
+              tr
+                data-order-number="<%= order.name.toLowerCase() %>"
+               data-delivery="<%= new Date(order.created_at).getTime() + getDeliveryHours(order)*3600*1000 %>"
+              >
                 <td><%= order.name %></td>
                 <td>
                   <% if (order.customer) { %>
@@ -381,6 +390,21 @@
         });
       });
     });
+// ===== Sort by Expected Delivery =====
+   const originalRows = Array.from(document.querySelectorAll('#ordersTable tbody tr'));
+   document.getElementById('sortFilter').addEventListener('change', function() {
+     const tbody = document.querySelector('#ordersTable tbody');
+     if (this.value === 'delivery') {
+       const sorted = originalRows.slice().sort((a, b) =>
+         parseInt(a.dataset.delivery) - parseInt(b.dataset.delivery)
+       );
+       tbody.innerHTML = '';
+       sorted.forEach(r => tbody.appendChild(r));
+     } else {
+       tbody.innerHTML = '';
+       originalRows.forEach(r => tbody.appendChild(r));
+     }
+   });
   </script>
 </body>
 </html>
