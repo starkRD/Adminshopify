@@ -135,7 +135,14 @@
                 });
               }
             %>
-            <% orders.forEach(order => { %>
+           <% orders.forEach(order => { %>
+<% 
+                 // combine main + add-on items into one list
+                 const displayItems = [
+                   ...order.line_items,
+                   ...(order.addons || []).flatMap(a => a.line_items)
+                 ];
+            %>
               <tr
                 data-order-number="<%= order.name.toLowerCase() %>"
                data-delivery="<%= new Date(order.created_at).getTime() + getDeliveryHours(order)*3600*1000 %>"
@@ -150,15 +157,13 @@
                   <% } %>
                 </td>
                 <td>
-                  <div class="order-details-container" id="order-details-<%= order.id %>">
-                    <% 
-                      order.line_items.forEach(item => {
-                        %><div><strong><%= item.title %></strong> &times; <%= item.quantity %><br><% 
-                        
-                        if (item.properties && item.properties.length > 0) {
-                          item.properties.forEach(prop => {
-                            const propName = prop.name.toLowerCase();
-                            let displayValue = prop.value;
+                 <div class="order-details-container" id="order-details-<%= order.id %>">
+                    <% displayItems.forEach(item => { %>
+                      <div><strong><%= item.title %></strong> &times; <%= item.quantity %><br>
+                        <% if (item.properties && item.properties.length > 0) {
+                             item.properties.forEach(prop => {
+                               const propName = prop.name.toLowerCase();
+                               let displayValue = prop.value;
 
                             // Hide certain properties for viewers
                             if (role === 'viewer') {
@@ -190,12 +195,14 @@
                             }
 
                             // Show the (filtered) property to the user
-                            %><small><%= prop.name %>: <%= displayValue %></small><br><%
-                          });
-                        }
-                        %></div><hr class="my-1"><%
-                      });
-                    %>
+                            %>
+                               <small><%= prop.name %>: <%= displayValue %></small><br>
+                        <%     });
+                           }
+                        %>
+                      </div>
+                      <hr class="my-1">
+                    <% }); %>
                   </div>
                   <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.id %>">Copy</button>
                 </td>
