@@ -103,12 +103,12 @@
               // Helper functions for expected delivery
               function getDeliveryHours(order) {
                 const timelines = [
-                      { name: "Basic",   ids: ["41290369269835"],                                            hours: 240 }, // 10 days
-                      { name: "Standard",ids: ["41290369302603","41274164510795","41370839711819"],          hours: 120 }, // 5 days
-                      { name: "Premium", ids: ["41290369335371","41370839744587"],                            hours: 30  }, // 30h
-                      { name: "Beast",   ids: ["41290369368139","41370839777355"],                            hours: 30  }, // 30h
-                      { name: "FAST",    ids: ["41274164543563","41421665075275"],                            hours: 48  }, // 48h (fast delivery add-on)
-                      { name: "EXPRESS", ids: ["41274164576331","7302540984395"],                             hours: 24  }  // 24h (express superfast)
+                  { name: "Basic", ids: ["41290369269835"], hours: 240 },
+                  { name: "Standard", ids: ["41290369302603", "41274164510795"], hours: 120 },
+                  { name: "Premium", ids: ["41290369335371"], hours: 30 },
+                  { name: "Beast", ids: ["41290369368139"], hours: 30 },
+                  { name: "FAST", ids: ["41274164543563"], hours: 48 },
+                  { name: "EXPRESS", ids: ["41274164576331"], hours: 24 }
                 ];
                 let matchedHours = [];
                 if (order.line_items) {
@@ -135,14 +135,7 @@
                 });
               }
             %>
-           <% orders.forEach(order => { %>
-<% 
-                 // combine main + add-on items into one list
-                 const displayItems = [
-                   ...order.line_items,
-                   ...(order.addons || []).flatMap(a => a.line_items)
-                 ];
-            %>
+            <% orders.forEach(order => { %>
               <tr
                 data-order-number="<%= order.name.toLowerCase() %>"
                data-delivery="<%= new Date(order.created_at).getTime() + getDeliveryHours(order)*3600*1000 %>"
@@ -157,13 +150,15 @@
                   <% } %>
                 </td>
                 <td>
-                 <div class="order-details-container" id="order-details-<%= order.id %>">
-                    <% displayItems.forEach(item => { %>
-                      <div><strong><%= item.title %></strong> &times; <%= item.quantity %><br>
-                        <% if (item.properties && item.properties.length > 0) {
-                             item.properties.forEach(prop => {
-                               const propName = prop.name.toLowerCase();
-                               let displayValue = prop.value;
+                  <div class="order-details-container" id="order-details-<%= order.id %>">
+                    <% 
+                      order.line_items.forEach(item => {
+                        %><div><strong><%= item.title %></strong> &times; <%= item.quantity %><br><% 
+                        
+                        if (item.properties && item.properties.length > 0) {
+                          item.properties.forEach(prop => {
+                            const propName = prop.name.toLowerCase();
+                            let displayValue = prop.value;
 
                             // Hide certain properties for viewers
                             if (role === 'viewer') {
@@ -195,14 +190,12 @@
                             }
 
                             // Show the (filtered) property to the user
-                            %>
-                               <small><%= prop.name %>: <%= displayValue %></small><br>
-                        <%     });
-                           }
-                        %>
-                      </div>
-                      <hr class="my-1">
-                    <% }); %>
+                            %><small><%= prop.name %>: <%= displayValue %></small><br><%
+                          });
+                        }
+                        %></div><hr class="my-1"><%
+                      });
+                    %>
                   </div>
                   <button class="btn btn-sm btn-secondary mt-1 copy-btn" data-order-id="<%= order.id %>">Copy</button>
                 </td>
