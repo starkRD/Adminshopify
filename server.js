@@ -230,64 +230,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
         return allowedLanguages.includes(foundLanguage);
       });
     }
-// ===== Merge add-on orders under the active “main” song order =====
-    const ADDON_VARIANT_IDS = [
-      "41370839711819",  // Upgrade to Standard (5d)
-      "41370839744587",  // Upgrade to Premium (30h)
-      "41370839777355",  // Upgrade to Beast (30h)
-      "41421665075275",  // Fast Delivery (48h)
-      "41368951455819",  // Lyrics PDF
-      "41368940838987",  // Voice-note add-on
-      "7302540984395"    // Express Superfast (24h)
-    ];
 
-    // 1) Find each customer’s one open “main” (non–add-on) order
-    const activeMain = {};
-    orders.forEach(o => {
-      const email = o.customer?.email;
-      if (!email) return;
-      const hasAddon = o.line_items.some(li =>
-        ADDON_VARIANT_IDS.includes(String(li.variant_id))
-      );
-      if (!hasAddon && !o.status.done) {
-        activeMain[email] = { ...o, addons: [] };
-      }
-    });
-
-    // 2) Attach any pure add-on orders to their main
-    orders.forEach(o => {
-      const email = o.customer?.email;
-      if (!email || !activeMain[email]) return;
-      const isAddon = o.line_items.every(li =>
-        ADDON_VARIANT_IDS.includes(String(li.variant_id))
-      );
-      if (isAddon) {
-        activeMain[email].addons.push(o);
-      }
-    });
-
-    // 3) Rebuild `orders` array
-    orders = orders
-      .filter(o => {
-        const email = o.customer?.email;
-        const isAddon = o.line_items.every(li =>
-          ADDON_VARIANT_IDS.includes(String(li.variant_id))
-        );
-        return (
-          (!isAddon && !o.status.done) ||    // open main orders
-          o.status.done ||                   // any delivered order
-          (isAddon && !activeMain[email])    // stand-alone add-ons
-        );
-      })
-      .map(o => {
-        const email = o.customer?.email;
-        // replace the main with its merged version
-        if (email && activeMain[email]?.id === o.id) {
-          return activeMain[email];
-        }
-        return o;
-      });
-    // ===== end merge logic =====
     res.render('dashboard', {
       orders,
       role: req.session.role
