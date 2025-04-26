@@ -231,7 +231,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
       });
     }
 
-    +    // ===== Merge add-ons under the active “main” song order =====
++    // ===== Merge add-on orders under the active “main” song order =====
 +    const ADDON_VARIANT_IDS = [
 +      "41370839711819",  // Upgrade to Standard (5d)
 +      "41370839744587",  // Upgrade to Premium (30h)
@@ -267,10 +267,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 +      }
 +    });
 +
-+    // 3) Rebuild `orders` to:
-+    //    • include each open main (with its .addons)
-+    //    • include any delivered orders (history)
-+    //    • include stand-alone add-ons (no open main)
++    // 3) Rebuild `orders`:
 +    orders = orders
 +      .filter(o => {
 +        const email = o.customer?.email;
@@ -278,9 +275,9 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 +          ADDON_VARIANT_IDS.includes(String(li.variant_id))
 +        );
 +        return (
-+          (!isAddon && !o.status.done) ||
-+          o.status.done ||
-+          (isAddon && !activeMain[email])
++          (!isAddon && !o.status.done) ||    // open main
++          o.status.done ||                   // any delivered order
++          (isAddon && !activeMain[email])    // stand-alone add-on
 +        );
 +      })
 +      .map(o => {
@@ -291,11 +288,11 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 +        return o;
 +      });
 +    // ===== end merge logic =====
-
-    res.render('dashboard', {
-      orders,
-      role: req.session.role
-    });
++
++    res.render('dashboard', {
++      orders,
++      role: req.session.role
++    });
   } catch (error) {
     console.error('Error fetching orders:', error.message);
     res.status(500).send('Error fetching orders');
