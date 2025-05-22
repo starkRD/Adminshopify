@@ -30,13 +30,6 @@
       color: white;
       z-index: 2;
     }
-    .internal-note-item {
-      border-bottom: 1px solid #ddd;
-      padding: 3px 0;
-    }
-    .internal-note-actions button {
-      margin-right: 5px;
-    }
   </style>
 </head>
 <body class="bg-light">
@@ -81,11 +74,10 @@
           <colgroup>
             <col style="width:7%;">
             <col style="width:10%;">
-            <col style="width:35%;">
-            <col style="width:10%;">
-            <col style="width:10%;">
-            <col style="width:5%;">
+            <col style="width:40%;">
             <col style="width:13%;">
+            <col style="width:15%;">
+            <col style="width:5%;">
           </colgroup>
           <thead class="table-dark">
             <tr>
@@ -95,7 +87,6 @@
               <th>Expected Delivery</th>
               <th>Feedback/Changes</th>
               <th>Done</th>
-              <th>Internal Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -214,39 +205,6 @@
                     <%= order.status.done ? 'checked' : '' %> 
                   >
                 </td>
-                <td>
-                  <div class="internal-notes-list" data-order-id="<%= order.id %>">
-                    <% order.internalNotes.forEach((note, idx) => { %>
-                      <div class="internal-note-item" data-note-index="<%= idx %>">
-                        <span class="note-text"><%= note %></span>
-                        <span class="internal-note-actions">
-                          <button 
-                            class="btn btn-xs btn-warning edit-note-btn" 
-                            data-order-id="<%= order.id %>" 
-                            data-note-index="<%= idx %>"
-                          >Edit</button>
-                          <button 
-                            class="btn btn-xs btn-danger delete-note-btn" 
-                            data-order-id="<%= order.id %>" 
-                            data-note-index="<%= idx %>"
-                          >Delete</button>
-                        </span>
-                      </div>
-                    <% }); %>
-                  </div>
-                  <div class="mt-2">
-                    <input 
-                      type="text" 
-                      class="form-control new-note-input" 
-                      data-order-id="<%= order.id %>" 
-                      placeholder="Add new note"
-                    >
-                    <button 
-                      class="btn btn-sm btn-primary mt-1 add-note-btn" 
-                      data-order-id="<%= order.id %>"
-                    >Submit Note</button>
-                  </div>
-                </td>
               </tr>
             <% }); %>
           </tbody>
@@ -303,93 +261,6 @@
      });
    });
 
-    // Internal Notes: add new
-    document.querySelectorAll('.add-note-btn').forEach(function(button) {
-      button.addEventListener('click', function() {
-        const orderId = this.getAttribute('data-order-id');
-        const inputElem = document.querySelector('.new-note-input[data-order-id="' + orderId + '"]');
-        const note = inputElem.value.trim();
-        if (note === "") {
-          alert('Please enter a note.');
-          return;
-        }
-        fetch('/add_internal_note', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, note })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            alert('Note added successfully!');
-            location.reload();
-          } else {
-            alert('Error: ' + data.error);
-          }
-        })
-        .catch(err => {
-          console.error('Error adding note:', err);
-          alert('Error adding note.');
-        });
-      });
-    });
-
-    // Internal Notes: edit
-    document.querySelectorAll('.edit-note-btn').forEach(function(button) {
-      button.addEventListener('click', function() {
-        const orderId = this.getAttribute('data-order-id');
-        const noteIndex = this.getAttribute('data-note-index');
-        const noteItem = this.parentElement.parentElement;
-        const currentText = noteItem.querySelector('.note-text').innerText;
-        const newText = prompt('Edit note:', currentText);
-        if (newText === null) return; // Cancel
-        fetch('/edit_internal_note', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, noteIndex, updatedNote: newText })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            alert('Note updated successfully!');
-            location.reload();
-          } else {
-            alert('Error: ' + data.error);
-          }
-        })
-        .catch(err => {
-          console.error('Error updating note:', err);
-          alert('Error updating note.');
-        });
-      });
-    });
-
-    // Internal Notes: delete
-    document.querySelectorAll('.delete-note-btn').forEach(function(button) {
-      button.addEventListener('click', function() {
-        const orderId = this.getAttribute('data-order-id');
-        const noteIndex = this.getAttribute('data-note-index');
-        if (!confirm('Are you sure you want to delete this note?')) return;
-        fetch('/delete_internal_note', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, noteIndex })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            alert('Note deleted successfully!');
-            location.reload();
-          } else {
-            alert('Error: ' + data.error);
-          }
-        })
-        .catch(err => {
-          console.error('Error deleting note:', err);
-          alert('Error deleting note.');
-        });
-      });
-    });
 // ===== Sort by Expected Delivery =====
    const originalRows = Array.from(document.querySelectorAll('#ordersTable tbody tr'));
    document.getElementById('sortFilter').addEventListener('change', function() {
