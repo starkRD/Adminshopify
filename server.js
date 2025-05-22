@@ -26,6 +26,15 @@ const redis = new Redis(process.env.UPSTASH_REDIS_URL, {
   tls: {} // Required for Upstash
 });
 
+// Redis Status Helpers
+async function saveStatus(orderId, status) {
+  return await redis.set(`status:${orderId}`, JSON.stringify(status));
+}
+async function getStatus(orderId) {
+  const data = await redis.get(`status:${orderId}`);
+  return data ? JSON.parse(data) : { done: false };
+}
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieSession({
@@ -37,25 +46,6 @@ app.use(cookieSession({
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-
-// --------------------
-// Redis Storage Helpers
-// --------------------
-async function saveStatus(orderId, status) {
-  return await redis.set(`status:${orderId}`, JSON.stringify(status));
-}
-async function getStatus(orderId) {
-  const data = await redis.get(`status:${orderId}`);
-  return data ? JSON.parse(data) : { done: false, editing: false, delivered: false };
-}
-
-async function saveNotes(orderId, notesArray) {
-  return await redis.set(`notes:${orderId}`, JSON.stringify(notesArray));
-}
-async function getNotes(orderId) {
-  const data = await redis.get(`notes:${orderId}`);
-  return data ? JSON.parse(data) : [];
-}
 
 // --------------------
 // Login / Logout Routes
@@ -171,12 +161,10 @@ app.get('/dashboard', requireLogin, async (req, res) => {
     // Fetch ALL unfulfilled orders
     let orders = await fetchAllOrders(shop, accessToken);
 
-    // For each order, get internal notes + status from Redis
+    // For each order, status from Redis
     orders = await Promise.all(
       orders.map(async order => {
-        const notes = await getNotes(order.id);
         const status = await getStatus(order.id);
-        order.internalNotes = notes;
         order.status = status;
         return order;
       })
@@ -256,60 +244,6 @@ app.post('/update_status', requireLogin, async (req, res) => {
   } catch (error) {
     console.error('Error updating status:', error);
     return res.json({ success: false, error: 'Error updating status.' });
-  }
-});
-
-app.post('/add_internal_note', requireLogin, async (req, res) => {
-  const { orderId, note } = req.body;
-  if (!orderId || !note) {
-    return res.json({ success: false, error: 'Order ID and note are required.' });
-  }
-  try {
-    const currentNotes = await getNotes(orderId);
-    currentNotes.push(note);
-    await saveNotes(orderId, currentNotes);
-    return res.json({ success: true, noteIndex: currentNotes.length - 1 });
-  } catch (error) {
-    console.error('Error adding internal note:', error);
-    return res.json({ success: false, error: 'Error adding internal note.' });
-  }
-});
-
-app.post('/edit_internal_note', requireLogin, async (req, res) => {
-  const { orderId, noteIndex, updatedNote } = req.body;
-  if (!orderId || noteIndex === undefined || updatedNote === undefined) {
-    return res.json({ success: false, error: 'Required parameters are missing.' });
-  }
-  try {
-    const currentNotes = await getNotes(orderId);
-    if (!currentNotes[noteIndex]) {
-      return res.json({ success: false, error: 'Note not found.' });
-    }
-    currentNotes[noteIndex] = updatedNote;
-    await saveNotes(orderId, currentNotes);
-    return res.json({ success: true });
-  } catch (error) {
-    console.error('Error editing internal note:', error);
-    return res.json({ success: false, error: 'Error editing internal note.' });
-  }
-});
-
-app.post('/delete_internal_note', requireLogin, async (req, res) => {
-  const { orderId, noteIndex } = req.body;
-  if (!orderId || noteIndex === undefined) {
-    return res.json({ success: false, error: 'Order ID and note index are required.' });
-  }
-  try {
-    const currentNotes = await getNotes(orderId);
-    if (!currentNotes[noteIndex]) {
-      return res.json({ success: false, error: 'Note not found.' });
-    }
-    currentNotes.splice(noteIndex, 1);
-    await saveNotes(orderId, currentNotes);
-    return res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting internal note:', error);
-    return res.json({ success: false, error: 'Error deleting internal note.' });
   }
 });
 
