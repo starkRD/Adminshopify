@@ -7,10 +7,9 @@
     }
   ],
   "routes": [
-    // 1) Try to serve a static file from /public if it exists
-    { "handle": "filesystem" },
-
-    // 2) Otherwise, fall back to your Express server
-    { "src": "/(.*)", "dest": "server.js" }
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
   ]
 }
