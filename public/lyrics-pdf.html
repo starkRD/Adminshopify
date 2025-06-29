@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Generate Lyrics PDF</title>
+  <!-- jsPDF from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 2rem auto; }
+    label { display: block; margin: 1rem 0 0.5rem; }
+    input, textarea, button { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+    textarea { height: 200px; }
+    button { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h2>Lyrics → PDF</h2>
+  <label for="orderId">Order ID:</label>
+  <input type="text" id="orderId" placeholder="e.g. 12345" />
+
+  <label for="lyrics">Lyrics:</label>
+  <textarea id="lyrics" placeholder="Paste your lyrics here…"></textarea>
+
+  <button id="generate">Download PDF</button>
+
+  <script>
+    const { jsPDF } = window.jspdf;
+    document.getElementById('generate').addEventListener('click', () => {
+      const orderId = document.getElementById('orderId').value.trim();
+      const lyrics  = document.getElementById('lyrics').value.trim();
+      if (!orderId || !lyrics) {
+        return alert('Please fill in both fields!');
+      }
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      doc.setFontSize(14);
+      doc.text(`Order ID: ${orderId}`, 40, 50);
+      doc.setFontSize(12);
+      const lines = doc.splitTextToSize(lyrics, 520);
+      doc.text(lines, 40, 80);
+      doc.save(`Lyrics_${orderId}.pdf`);
+    });
+  </script>
+</body>
+</html>
