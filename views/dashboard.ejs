@@ -30,6 +30,15 @@
       color: white;
       z-index: 2;
     }
+/* ===== Highlight badge for Song Album plan ===== */
+    .highlight-plan {
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      padding: 0.2em 0.4em;
+      border-radius: 0.25rem;
+      font-weight: 600;
+      display: inline-block;
+    }
   </style>
 </head>
 <body class="bg-light">
@@ -144,7 +153,13 @@
                   <div class="order-details-container" id="order-details-<%= order.id %>">
                     <% 
                       order.line_items.forEach(item => {
-                        %><div><strong><%= item.title %></strong> &times; <%= item.quantity %><br><% 
+                        %><div><strong><%= item.title %></strong> &times; <%= item.quantity %><br><%
+// Show custom badge for Song Album (variant 41280630784075)
+            if (role === 'viewer' && String(item.variant_id) === "41280630784075") { %>
+              <small class="highlight-plan">
+                Plan: Song Album (3 songs, 30 hr delivery)
+              </small><br>
+          <% } 
                         
                         if (item.properties && item.properties.length > 0) {
                           item.properties.forEach(prop => {
