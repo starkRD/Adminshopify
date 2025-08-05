@@ -85,7 +85,7 @@ app.post('/login', (req, res) => {
   } else if (password === DASHBOARD_TELUGU_PASSWORD) {
     req.session.loggedIn = true;
     req.session.role = 'viewer';
-    req.session.languages = ['Telugu'];
+    req.session.languages = ['Telugu', 'Kannada'];
     return res.redirect('/dashboard');
   } else if (password === DASHBOARD_KANNADA_PASSWORD) {
     req.session.loggedIn = true;
