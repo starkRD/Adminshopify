@@ -83,7 +83,8 @@
           <colgroup>
             <col style="width:7%;">
             <col style="width:10%;">
-            <col style="width:40%;">
+            <col style="width:10%;">
+            <col style="width:35%;">
             <col style="width:13%;">
             <col style="width:15%;">
             <col style="width:5%;">
@@ -92,6 +93,7 @@
             <tr>
               <th>Order Number</th>
               <th>Customer Info</th>
+              <th>Created Date</th>
               <th>Order Details</th>
               <th>Expected Delivery</th>
               <th>Feedback/Changes</th>
@@ -149,6 +151,15 @@
                     Guest
                   <% } %>
                 </td>
+<!-- 🔹 Created Date -->
+    <td>
+      <%= new Date(order.created_at).toLocaleDateString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      }) %>
+    </td>
                 <td>
                   <div class="order-details-container" id="order-details-<%= order.id %>">
                     <% 
